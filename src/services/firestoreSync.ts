@@ -232,7 +232,7 @@ function buildGroupCreateDoc(uid: string, group: ShortcutGroup, index: number) {
     ownerId: uid,
     name: clampString(group.name, 80, 'Grup Baru'),
     color: VALID_GROUP_COLORS.has(group.color) ? group.color : 'indigo',
-    icon: clampString(group.icon, 60, 'Folder'),
+    icon: clampString(group.icon, 250000, 'Folder'),
     order: typeof group.order === 'number' && Number.isFinite(group.order) ? Math.min(Math.max(0, group.order), 10000) : index + 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -631,11 +631,14 @@ export async function syncGroupsToFirestore(
         handleFirestoreError(error, OperationType.CREATE, path);
       }
     } else {
+      if (group.icon && group.icon.length > 250000) {
+        throw new Error('Ukuran foto ikon grup terlalu besar (maksimal 250KB).');
+      }
       const updatePayload: Record<string, unknown> = {
         name: clampString(group.name, 80, 'Grup Baru'),
         description: group.description?.trim() ? clampString(group.description, 240) : deleteField(),
         color: VALID_GROUP_COLORS.has(group.color) ? group.color : 'indigo',
-        icon: clampString(group.icon, 60, 'Folder'),
+        icon: clampString(group.icon, 250000, 'Folder'),
         order:
           typeof group.order === 'number' && Number.isFinite(group.order)
             ? Math.min(Math.max(0, group.order), 10000)

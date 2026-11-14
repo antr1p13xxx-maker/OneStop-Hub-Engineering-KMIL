@@ -1,24 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
 import { LucideProps } from 'lucide-react';
+
+export function isImageIcon(value?: string): boolean {
+  if (!value) return false;
+  const trimmed = value.trim();
+  return (
+    trimmed.startsWith('data:image/') ||
+    /^https?:\/\//i.test(trimmed) ||
+    trimmed.startsWith('/')
+  );
+}
 
 interface DynamicIconProps extends LucideProps {
   name?: string;
   fallback?: React.ComponentType<LucideProps>;
 }
 
-export const DynamicIcon: React.FC<DynamicIconProps> = ({ name, fallback: Fallback = Icons.Globe, ...props }) => {
+export const DynamicIcon: React.FC<DynamicIconProps> = ({ name, fallback: Fallback = Icons.Globe, className, ...props }) => {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [name]);
+
   if (!name) {
-    return <Fallback {...props} />;
+    return <Fallback className={className} {...props} />;
+  }
+
+  if (isImageIcon(name) && !imgError) {
+    return (
+      <img
+        src={name}
+        alt=""
+        onError={() => setImgError(true)}
+        className={`${className || 'w-4 h-4'} object-cover rounded-sm shrink-0`}
+      />
+    );
   }
 
   // Lookup in lucide-react exports
   const Component = (Icons as unknown as Record<string, React.ComponentType<LucideProps>>)[name];
   if (Component && typeof Component === 'function') {
-    return <Component {...props} />;
+    return <Component className={className} {...props} />;
   }
 
-  return <Fallback {...props} />;
+  return <Fallback className={className} {...props} />;
 };
 
 export const AVAILABLE_GROUP_ICONS = [

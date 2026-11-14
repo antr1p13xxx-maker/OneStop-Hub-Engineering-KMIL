@@ -14,7 +14,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup, CustomLogoConfig } from '../types';
-import { DynamicIcon } from './DynamicIcon';
+import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard } from '../utils/pathHelper';
 
 interface OrbitHubViewProps {
@@ -329,7 +329,15 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             ) : (
               /* Default Center Brand / Group Hub Display (matching Quickseva reference layout) */
               <div className="space-y-1">
-                {customLogo?.src && !logoError ? (
+                {activeGroup && isImageIcon(activeGroup.icon) ? (
+                  <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl border border-amber-500/50 bg-neutral-900/90 overflow-hidden mx-auto mb-1.5 shadow-[0_0_24px_rgba(245,158,11,0.3)]">
+                    <img
+                      src={activeGroup.icon}
+                      alt={activeGroup.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : customLogo?.src && !logoError ? (
                   <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl border border-amber-500/45 bg-neutral-900/90 overflow-hidden mx-auto mb-1.5 shadow-[0_0_20px_rgba(245,158,11,0.25)]">
                     <img
                       src={customLogo.src}

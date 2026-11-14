@@ -98,7 +98,7 @@ import { RoleSwitchModal } from './components/RoleSwitchModal';
 import { SettingsModal } from './components/SettingsModal';
 import { JarvisIntro } from './components/JarvisIntro';
 import { OrbitHubView } from './components/OrbitHubView';
-import { DynamicIcon } from './components/DynamicIcon';
+import { DynamicIcon, isImageIcon } from './components/DynamicIcon';
 
 export default function App() {
   // State
@@ -1283,8 +1283,12 @@ export default function App() {
                     {/* Group Header */}
                     <div className="flex items-center justify-between pb-3 mb-4 border-b border-neutral-100 dark:border-neutral-800">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
-                          <DynamicIcon name={group.icon} className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
+                          {isImageIcon(group.icon) ? (
+                            <img src={group.icon} alt={group.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <DynamicIcon name={group.icon} className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          )}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">

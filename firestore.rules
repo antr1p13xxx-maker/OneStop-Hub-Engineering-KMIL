@@ -102,7 +102,7 @@ service cloud.firestore {
         data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
         (!('description' in data) || (data.description is string && data.description.size() <= 240)) &&
         data.color in ['indigo', 'blue', 'emerald', 'amber', 'rose', 'purple', 'cyan', 'slate'] &&
-        data.icon is string && data.icon.size() >= 1 && data.icon.size() <= 60 &&
+        data.icon is string && data.icon.size() >= 1 && data.icon.size() <= 250000 &&
         data.order is number && data.order >= 0 && data.order <= 10000 &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;

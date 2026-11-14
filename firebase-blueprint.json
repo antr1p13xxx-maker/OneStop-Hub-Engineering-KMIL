@@ -118,9 +118,9 @@
         },
         "icon": {
           "type": "string",
-          "description": "Nama ikon Lucide untuk grup.",
+          "description": "Nama ikon Lucide, URL gambar, atau Data URL foto untuk grup.",
           "minLength": 1,
-          "maxLength": 60
+          "maxLength": 250000
         },
         "order": {
           "type": "number",

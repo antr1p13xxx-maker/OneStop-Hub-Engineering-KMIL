@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Plus,
   Trash2,
   Edit2,
-  Check,
   FolderKanban,
   ArrowUp,
   ArrowDown,
-  Layers,
+  Upload,
+  Link2,
+  Image as ImageIcon,
+  RotateCcw,
 } from 'lucide-react';
 import { ShortcutGroup, ShortcutItem } from '../types';
-import { DynamicIcon, AVAILABLE_GROUP_ICONS } from './DynamicIcon';
+import { DynamicIcon, AVAILABLE_GROUP_ICONS, isImageIcon } from './DynamicIcon';
+import { processLogoImageFile } from '../utils/imageHelper';
 
 interface ManageGroupsModalProps {
   isOpen: boolean;
@@ -51,7 +54,11 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
   const [description, setDescription] = useState('');
   const [color, setColor] = useState<ShortcutGroup['color']>('blue');
   const [icon, setIcon] = useState('FolderKanban');
+  const [iconTab, setIconTab] = useState<'preset' | 'photo'>('preset');
+  const [photoUrlInput, setPhotoUrlInput] = useState('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -62,6 +69,8 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
     setDescription('');
     setColor('indigo');
     setIcon('FolderKanban');
+    setIconTab('preset');
+    setPhotoUrlInput('');
     setError('');
   };
 
@@ -72,7 +81,52 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
     setDescription(group.description || '');
     setColor(group.color);
     setIcon(group.icon);
+    const usesPhoto = isImageIcon(group.icon);
+    setIconTab(usesPhoto ? 'photo' : 'preset');
+    setPhotoUrlInput(usesPhoto && !group.icon.startsWith('data:') ? group.icon : '');
     setError('');
+  };
+
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setIsProcessingPhoto(true);
+    try {
+      const dataUrl = await processLogoImageFile(file, 160);
+      if (dataUrl.length > 250000) {
+        setError('Ukuran foto terlalu besar. Pilih gambar yang lebih kecil.');
+        return;
+      }
+      setIcon(dataUrl);
+      setPhotoUrlInput('');
+      setIconTab('photo');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memproses foto ikon grup.');
+    } finally {
+      setIsProcessingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleApplyPhotoUrl = () => {
+    const trimmed = photoUrlInput.trim();
+    if (!trimmed) {
+      setError('Masukkan URL gambar yang valid.');
+      return;
+    }
+    if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('data:image/')) {
+      setError('URL foto harus diawali http:// atau https://');
+      return;
+    }
+    if (trimmed.length > 250000) {
+      setError('URL foto terlalu panjang.');
+      return;
+    }
+    setError('');
+    setIcon(trimmed);
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -112,7 +166,7 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
 
   const handleDeleteGroup = (groupId: string) => {
     if (groups.length <= 1) {
-      alert('Minimal harus ada satu grup kategori dalam dasbor.');
+      setError('Minimal harus ada satu grup kategori dalam dasbor.');
       return;
     }
 
@@ -237,39 +291,145 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Warna Aksen
+              <div>
+                <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Warna Aksen
+                </label>
+                <select
+                  value={color}
+                  onChange={(e) => setColor(e.target.value as ShortcutGroup['color'])}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                >
+                  {COLOR_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Group Icon / Custom Photo Picker */}
+              <div className="p-3 rounded-xl border border-neutral-200 dark:border-neutral-700/80 bg-white/70 dark:bg-neutral-900/60 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="font-medium text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Ikon atau Foto Grup</span>
                   </label>
-                  <select
-                    value={color}
-                    onChange={(e) => setColor(e.target.value as ShortcutGroup['color'])}
-                    className="w-full px-2 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
-                  >
-                    {COLOR_OPTIONS.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="inline-flex p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIconTab('preset');
+                        if (isImageIcon(icon)) {
+                          setIcon('FolderKanban');
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                        iconTab === 'preset'
+                          ? 'bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+                      }`}
+                    >
+                      Ikon Bawaan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIconTab('photo')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                        iconTab === 'photo'
+                          ? 'bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+                      }`}
+                    >
+                      Foto Kustom
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Ikon Kategori
-                  </label>
-                  <select
-                    value={icon}
-                    onChange={(e) => setIcon(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
-                  >
-                    {AVAILABLE_GROUP_ICONS.map((i) => (
-                      <option key={i.name} value={i.name}>
-                        {i.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex items-start gap-3">
+                  {/* Live Icon/Photo Preview */}
+                  <div className="w-11 h-11 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
+                    {isImageIcon(icon) ? (
+                      <img src={icon} alt="Pratinjau grup" className="w-full h-full object-cover" />
+                    ) : (
+                      <DynamicIcon name={icon} className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    )}
+                  </div>
+
+                  {iconTab === 'preset' ? (
+                    <div className="flex-1 min-w-0">
+                      <select
+                        value={isImageIcon(icon) ? 'FolderKanban' : icon}
+                        onChange={(e) => setIcon(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                      >
+                        {AVAILABLE_GROUP_ICONS.map((i) => (
+                          <option key={i.name} value={i.name}>
+                            {i.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
+                        Atau pilih tab &ldquo;Foto Kustom&rdquo; untuk mengganti ikon dengan foto.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                          onChange={handlePhotoFileChange}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          disabled={isProcessingPhoto}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{isProcessingPhoto ? 'Memproses...' : 'Pilih Foto'}</span>
+                        </button>
+
+                        {isImageIcon(icon) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIcon('FolderKanban');
+                              setPhotoUrlInput('');
+                              setIconTab('preset');
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 hover:text-rose-600 dark:hover:text-rose-400 bg-neutral-100 dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 transition-colors"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Reset Ikon</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <Link2 className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                          <input
+                            type="url"
+                            value={photoUrlInput}
+                            onChange={(e) => setPhotoUrlInput(e.target.value)}
+                            placeholder="Atau tempel URL foto (https://...)"
+                            className="w-full pl-7 pr-2.5 py-1 text-[11px] rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApplyPhotoUrl}
+                          className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 shrink-0"
+                        >
+                          Pakai URL
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -304,8 +464,12 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                   className="flex items-center justify-between gap-3 p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/40 text-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0">
-                      <DynamicIcon name={group.icon} className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
+                      {isImageIcon(group.icon) ? (
+                        <img src={group.icon} alt={group.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <DynamicIcon name={group.icon} className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                      )}
                     </div>
 
                     <div className="min-w-0">
