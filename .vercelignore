@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+firestore.rules.test.ts
+security_spec.md
+firebase-blueprint.json
+eslint.config.js

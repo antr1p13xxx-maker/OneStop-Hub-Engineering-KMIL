@@ -8,7 +8,28 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
+      },
+    },
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
+              return 'firebase';
+            }
+            if (
+              id.includes('node_modules/react') ||
+              id.includes('node_modules/lucide-react') ||
+              id.includes('node_modules/motion')
+            ) {
+              return 'vendor';
+            }
+            return undefined;
+          },
+        },
       },
     },
     server: {
