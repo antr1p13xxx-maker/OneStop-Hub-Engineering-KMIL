@@ -1,0 +1,311 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil privat pengguna terautentikasi Google.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "UID pengguna Firebase Auth.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email Google pengguna.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nama tampilan pengguna.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL foto profil Google.",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan profil."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan terakhir."
+        }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "Workspace": {
+      "title": "Workspace",
+      "description": "Ruang kerja dasbor OneStop Hub Engineering milik pengguna.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik workspace.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID pemilik workspace.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama workspace.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu dibuat."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu diperbarui."
+        }
+      },
+      "required": ["id", "ownerId", "name", "createdAt", "updatedAt"]
+    },
+    "ShortcutGroup": {
+      "title": "ShortcutGroup",
+      "description": "Kategori pengelompokan pintasan layanan dan direktori.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik grup.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID pemilik grup.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama kategori grup.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "description": "Deskripsi singkat grup.",
+          "maxLength": 240
+        },
+        "color": {
+          "type": "string",
+          "enum": ["indigo", "blue", "emerald", "amber", "rose", "purple", "cyan", "slate"],
+          "description": "Warna aksen grup."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Nama ikon Lucide untuk grup.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "order": {
+          "type": "number",
+          "description": "Urutan tampilan grup."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu dibuat."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu diperbarui."
+        }
+      },
+      "required": ["id", "ownerId", "name", "color", "icon", "order", "createdAt", "updatedAt"]
+    },
+    "ShortcutItem": {
+      "title": "ShortcutItem",
+      "description": "Pintasan aplikasi web, protokol desktop, atau direktori drive lokal.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik pintasan.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID pemilik pintasan.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Judul pintasan.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "url": {
+          "type": "string",
+          "description": "URL web atau alamat path direktori lokal (mis. D:\\Proyek).",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "type": {
+          "type": "string",
+          "enum": ["web", "directory", "protocol", "file"],
+          "description": "Jenis pintasan."
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Referensi ID grup kategori.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Catatan atau deskripsi pintasan.",
+          "maxLength": 500
+        },
+        "iconType": {
+          "type": "string",
+          "enum": ["preset", "favicon", "custom", "drive"],
+          "description": "Sumber ikon pintasan."
+        },
+        "iconValue": {
+          "type": "string",
+          "description": "Nama ikon Lucide atau URL ikon.",
+          "maxLength": 500
+        },
+        "color": {
+          "type": "string",
+          "description": "Aksen warna opsional.",
+          "maxLength": 30
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Status semat di Quick Dock."
+        },
+        "clickCount": {
+          "type": "number",
+          "description": "Jumlah akses klik."
+        },
+        "lastOpened": {
+          "type": "number",
+          "description": "Timestamp epoch terakhir dibuka."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Daftar tag pintasan (maksimal 10).",
+          "maxLength": 10
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu dibuat."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu diperbarui."
+        }
+      },
+      "required": ["id", "ownerId", "title", "url", "type", "groupId", "iconType", "isPinned", "clickCount", "createdAt", "updatedAt"]
+    },
+    "WorkspaceSettings": {
+      "title": "WorkspaceSettings",
+      "description": "Preferensi tampilan dasbor, densitas kartu, Jarvis HUD, dan logo kustom.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID pemilik pengaturan.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "cardDensity": {
+          "type": "string",
+          "enum": ["small", "medium", "large"],
+          "description": "Densitas tampilan kartu grid."
+        },
+        "viewMode": {
+          "type": "string",
+          "enum": ["grid", "list", "sections", "orbit"],
+          "description": "Mode tata letak utama."
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark"],
+          "description": "Tema warna aplikasi."
+        },
+        "jarvisIntroEnabled": {
+          "type": "boolean",
+          "description": "Status animasi pembuka J.A.R.V.I.S."
+        },
+        "jarvisAudioEnabled": {
+          "type": "boolean",
+          "description": "Status efek suara J.A.R.V.I.S."
+        },
+        "customLogoSrc": {
+          "type": "string",
+          "description": "Data URL atau tautan gambar logo kustom.",
+          "maxLength": 250000
+        },
+        "customLogoFit": {
+          "type": "string",
+          "enum": ["cover", "contain"],
+          "description": "Proporsi bingkai foto logo."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan terakhir."
+        }
+      },
+      "required": ["ownerId", "cardDensity", "viewMode", "theme", "jarvisIntroEnabled", "jarvisAudioEnabled", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/private/profile": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Data profil privat PII milik pengguna yang terautentikasi."
+    },
+    "/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/Workspace" },
+      "description": "Dokumen induk ruang kerja OneStop Hub Engineering milik pengguna."
+    },
+    "/workspaces/{workspaceId}/groups/{groupId}": {
+      "schema": { "$ref": "#/entities/ShortcutGroup" },
+      "description": "Koleksi kategori grup pintasan di dalam workspace."
+    },
+    "/workspaces/{workspaceId}/shortcuts/{shortcutId}": {
+      "schema": { "$ref": "#/entities/ShortcutItem" },
+      "description": "Koleksi pintasan web dan direktori Drive di dalam workspace."
+    },
+    "/workspaces/{workspaceId}/settings/config": {
+      "schema": { "$ref": "#/entities/WorkspaceSettings" },
+      "description": "Konfigurasi tampilan, densitas kartu, Jarvis HUD, dan logo kustom workspace."
+    }
+  }
+}

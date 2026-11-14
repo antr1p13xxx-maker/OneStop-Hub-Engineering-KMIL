@@ -1,0 +1,6 @@
+{
+  "name": "OneStop Workspace Hub",
+  "description": "Dasbor terintegrasi untuk mengelola semua pintasan aplikasi web, direktori drive lokal (seperti Drive D:, C:), dan pengelompokan kategori kerja maupun pribadi secara praktis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
