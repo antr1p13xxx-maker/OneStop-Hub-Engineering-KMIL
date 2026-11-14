@@ -11,7 +11,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup } from '../types';
-import { DynamicIcon } from './DynamicIcon';
+import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard } from '../utils/pathHelper';
 
 interface ShortcutListItemProps {
@@ -58,8 +58,17 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
     }
   };
 
+  const [customPhotoError, setCustomPhotoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+
+  useEffect(() => {
+    setCustomPhotoError(false);
+    setFaviconError(false);
+  }, [shortcut.iconValue, shortcut.iconType, shortcut.url]);
+
   const isDirectory = shortcut.type === 'directory';
-  const favicon = shortcut.iconType === 'favicon' ? getFaviconUrl(shortcut.url) : null;
+  const hasCustomPhoto = shortcut.iconType === 'custom' && isImageIcon(shortcut.iconValue) && !customPhotoError;
+  const favicon = shortcut.iconType === 'favicon' && !faviconError ? getFaviconUrl(shortcut.url) : null;
 
   return (
     <div
@@ -69,7 +78,14 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
       {/* Icon + Title + Group */}
       <div className="flex items-center gap-3 min-w-[240px] flex-1">
         <div className="w-8 h-8 rounded-md bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-          {isDirectory ? (
+          {hasCustomPhoto ? (
+            <img
+              src={shortcut.iconValue}
+              alt={shortcut.title}
+              onError={() => setCustomPhotoError(true)}
+              className="w-full h-full object-cover"
+            />
+          ) : isDirectory ? (
             <HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           ) : favicon ? (
             <img
@@ -77,13 +93,11 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
               alt={shortcut.title}
               className="w-4 h-4 object-contain"
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+              onError={() => setFaviconError(true)}
             />
           ) : (
             <DynamicIcon
-              name={shortcut.iconValue || 'Globe'}
+              name={isImageIcon(shortcut.iconValue) ? 'Globe' : shortcut.iconValue || 'Globe'}
               className="w-4 h-4 text-indigo-600 dark:text-indigo-400"
             />
           )}

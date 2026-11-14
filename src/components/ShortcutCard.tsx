@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup, CardDensity } from '../types';
-import { DynamicIcon } from './DynamicIcon';
+import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard, getWindowsExplorerCommand } from '../utils/pathHelper';
 
 interface ShortcutCardProps {
@@ -75,9 +75,18 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
     setShowMenu(false);
   };
 
+  const [customPhotoError, setCustomPhotoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+
+  useEffect(() => {
+    setCustomPhotoError(false);
+    setFaviconError(false);
+  }, [shortcut.iconValue, shortcut.iconType, shortcut.url]);
+
   const isDirectory = shortcut.type === 'directory';
   const isProtocol = shortcut.type === 'protocol';
-  const favicon = shortcut.iconType === 'favicon' ? getFaviconUrl(shortcut.url) : null;
+  const hasCustomPhoto = shortcut.iconType === 'custom' && isImageIcon(shortcut.iconValue) && !customPhotoError;
+  const favicon = shortcut.iconType === 'favicon' && !faviconError ? getFaviconUrl(shortcut.url) : null;
 
   // Group color accents
   const groupBadgeClass = {
@@ -227,7 +236,14 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
               ? 'w-12 h-12 rounded-xl'
               : 'w-10 h-10 rounded-lg'
           } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors`}>
-            {isDirectory ? (
+            {hasCustomPhoto ? (
+              <img
+                src={shortcut.iconValue}
+                alt={shortcut.title}
+                onError={() => setCustomPhotoError(true)}
+                className="w-full h-full object-cover"
+              />
+            ) : isDirectory ? (
               <HardDrive className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} text-emerald-600 dark:text-emerald-400`} />
             ) : favicon ? (
               <img
@@ -235,13 +251,11 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                 alt={shortcut.title}
                 className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} object-contain`}
                 referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
+                onError={() => setFaviconError(true)}
               />
             ) : (
               <DynamicIcon
-                name={shortcut.iconValue || 'Globe'}
+                name={isImageIcon(shortcut.iconValue) ? 'Globe' : shortcut.iconValue || 'Globe'}
                 className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} text-indigo-600 dark:text-indigo-400`}
               />
             )}

@@ -274,7 +274,11 @@ function buildShortcutCreateDoc(
     payload.description = clampString(shortcut.description, 500);
   }
   if (shortcut.iconValue && shortcut.iconValue.trim()) {
-    payload.iconValue = clampString(shortcut.iconValue, 500);
+    const trimmedIcon = shortcut.iconValue.trim();
+    if (trimmedIcon.length > 250000) {
+      throw new Error('Ukuran foto ikon pintasan terlalu besar (maksimal 250KB).');
+    }
+    payload.iconValue = clampString(trimmedIcon, 250000);
   }
   if (shortcut.color && shortcut.color.trim()) {
     payload.color = clampString(shortcut.color, 30);
@@ -522,6 +526,11 @@ export async function updateShortcutInFirestore(
   const scId = sanitizeId(shortcut.id, 'sc');
   const path = `workspaces/${uid}/shortcuts/${scId}`;
 
+  const trimmedIconValue = shortcut.iconValue?.trim();
+  if (trimmedIconValue && trimmedIconValue.length > 250000) {
+    throw new Error('Ukuran foto ikon pintasan terlalu besar (maksimal 250KB).');
+  }
+
   const updatePayload: Record<string, unknown> = {
     title: clampString(shortcut.title, 120, 'Pintasan Tanpa Nama'),
     url: clampString(shortcut.url, 1000, 'https://example.com'),
@@ -530,7 +539,7 @@ export async function updateShortcutInFirestore(
     iconType: VALID_ICON_TYPES.has(shortcut.iconType) ? shortcut.iconType : 'preset',
     isPinned: Boolean(shortcut.isPinned),
     description: shortcut.description?.trim() ? clampString(shortcut.description, 500) : deleteField(),
-    iconValue: shortcut.iconValue?.trim() ? clampString(shortcut.iconValue, 500) : deleteField(),
+    iconValue: trimmedIconValue ? clampString(trimmedIconValue, 250000) : deleteField(),
     color: shortcut.color?.trim() ? clampString(shortcut.color, 30) : deleteField(),
     tags: sanitizeTags(shortcut.tags) ?? deleteField(),
     updatedAt: serverTimestamp(),

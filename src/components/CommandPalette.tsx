@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, ExternalLink, HardDrive, Globe, Pin, CornerDownLeft } from 'lucide-react';
+import { Search, X, HardDrive, CornerDownLeft } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup } from '../types';
-import { DynamicIcon } from './DynamicIcon';
+import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl } from '../utils/pathHelper';
 
 interface CommandPaletteProps {
@@ -21,6 +21,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [failedCustomPhotos, setFailedCustomPhotos] = useState<Record<string, boolean>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -105,6 +106,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               {filteredShortcuts.map((item, index) => {
                 const isSelected = index === selectedIndex;
                 const isDirectory = item.type === 'directory';
+                const hasCustomPhoto =
+                  item.iconType === 'custom' &&
+                  isImageIcon(item.iconValue) &&
+                  !failedCustomPhotos[`${item.id}:${item.iconValue}`];
                 const favicon = item.iconType === 'favicon' ? getFaviconUrl(item.url) : null;
                 const groupName = groups.find((g) => g.id === item.groupId)?.name;
 
@@ -123,8 +128,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-7 h-7 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0">
-                        {isDirectory ? (
+                      <div className="w-7 h-7 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
+                        {hasCustomPhoto ? (
+                          <img
+                            src={item.iconValue}
+                            alt=""
+                            onError={() =>
+                              setFailedCustomPhotos((prev) => ({
+                                ...prev,
+                                [`${item.id}:${item.iconValue}`]: true,
+                              }))
+                            }
+                            className="w-full h-full object-cover"
+                          />
+                        ) : isDirectory ? (
                           <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
                         ) : favicon ? (
                           <img
@@ -137,7 +154,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             }}
                           />
                         ) : (
-                          <DynamicIcon name={item.iconValue || 'Globe'} className="w-3.5 h-3.5 text-indigo-600" />
+                          <DynamicIcon
+                            name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                            className="w-3.5 h-3.5 text-indigo-600"
+                          />
                         )}
                       </div>
 

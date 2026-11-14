@@ -194,8 +194,8 @@
         },
         "iconValue": {
           "type": "string",
-          "description": "Nama ikon Lucide atau URL ikon.",
-          "maxLength": 500
+          "description": "Nama ikon Lucide, URL ikon, atau Data URL foto.",
+          "maxLength": 250000
         },
         "color": {
           "type": "string",

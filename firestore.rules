@@ -120,7 +120,7 @@ service cloud.firestore {
         isValidId(data.groupId) &&
         (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
         data.iconType in ['preset', 'favicon', 'custom', 'drive'] &&
-        (!('iconValue' in data) || (data.iconValue is string && data.iconValue.size() <= 500)) &&
+        (!('iconValue' in data) || (data.iconValue is string && data.iconValue.size() <= 250000)) &&
         (!('color' in data) || (data.color is string && data.color.size() <= 30)) &&
         data.isPinned is bool &&
         data.clickCount is number && data.clickCount >= 0 && data.clickCount <= 100000000 &&

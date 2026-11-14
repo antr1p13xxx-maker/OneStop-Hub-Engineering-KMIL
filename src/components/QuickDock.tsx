@@ -1,7 +1,7 @@
-import React from 'react';
-import { Pin, ExternalLink, HardDrive } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pin, HardDrive } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup } from '../types';
-import { DynamicIcon } from './DynamicIcon';
+import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl } from '../utils/pathHelper';
 
 interface QuickDockProps {
@@ -17,6 +17,9 @@ export const QuickDock: React.FC<QuickDockProps> = ({
   onLaunch,
   onUnpin,
 }) => {
+  const [failedCustomPhotos, setFailedCustomPhotos] = useState<Record<string, boolean>>({});
+  const [failedFavicons, setFailedFavicons] = useState<Record<string, boolean>>({});
+
   if (pinnedItems.length === 0) return null;
 
   const getGroupName = (groupId: string) => {
@@ -38,7 +41,14 @@ export const QuickDock: React.FC<QuickDockProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {pinnedItems.map((item) => {
           const isLocal = item.type === 'directory';
-          const favicon = item.iconType === 'favicon' ? getFaviconUrl(item.url) : null;
+          const hasCustomPhoto =
+            item.iconType === 'custom' &&
+            isImageIcon(item.iconValue) &&
+            !failedCustomPhotos[`${item.id}:${item.iconValue}`];
+          const favicon =
+            item.iconType === 'favicon' && !failedFavicons[item.id]
+              ? getFaviconUrl(item.url)
+              : null;
 
           return (
             <div
@@ -51,7 +61,19 @@ export const QuickDock: React.FC<QuickDockProps> = ({
                 className="flex items-center gap-2.5 min-w-0 flex-1 focus:outline-none"
               >
                 <div className="w-8 h-8 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                  {isLocal ? (
+                  {hasCustomPhoto ? (
+                    <img
+                      src={item.iconValue}
+                      alt={item.title}
+                      onError={() =>
+                        setFailedCustomPhotos((prev) => ({
+                          ...prev,
+                          [`${item.id}:${item.iconValue}`]: true,
+                        }))
+                      }
+                      className="w-full h-full object-cover"
+                    />
+                  ) : isLocal ? (
                     <HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   ) : favicon ? (
                     <img
@@ -59,12 +81,15 @@ export const QuickDock: React.FC<QuickDockProps> = ({
                       alt={item.title}
                       className="w-4 h-4 object-contain"
                       referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
+                      onError={() =>
+                        setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
+                      }
                     />
                   ) : (
-                    <DynamicIcon name={item.iconValue || 'Globe'} className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <DynamicIcon
+                      name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                      className="w-4 h-4 text-indigo-600 dark:text-indigo-400"
+                    />
                   )}
                 </div>
 

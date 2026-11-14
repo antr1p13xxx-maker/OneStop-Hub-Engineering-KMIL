@@ -51,6 +51,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   const [inspectedItem, setInspectedItem] = useState<ShortcutItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [failedFavicons, setFailedFavicons] = useState<Record<string, boolean>>({});
+  const [failedCustomPhotos, setFailedCustomPhotos] = useState<Record<string, boolean>>({});
   const [logoError, setLogoError] = useState(false);
 
   const activeGroup =
@@ -387,6 +388,11 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             const topPct = 50 + radiusPct * Math.sin(angle);
             const isSelected = activeShortcut?.id === item.id;
             const isDirectory = item.type === 'directory';
+            const customPhotoKey = `${item.id}:${item.iconValue || ''}`;
+            const hasCustomPhoto =
+              item.iconType === 'custom' &&
+              isImageIcon(item.iconValue) &&
+              !failedCustomPhotos[customPhotoKey];
             const favicon =
               item.iconType === 'favicon' && !failedFavicons[item.id]
                 ? getFaviconUrl(item.url)
@@ -414,24 +420,38 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                       : 'bg-neutral-900/85 border border-amber-500/35 hover:border-amber-400 hover:bg-amber-500/15 hover:scale-110 hover:shadow-[0_0_24px_rgba(245,158,11,0.4)]'
                   }`}
                 >
-                  {isDirectory ? (
-                    <HardDrive className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75]" />
-                  ) : favicon ? (
-                    <img
-                      src={favicon}
-                      alt={item.title}
-                      referrerPolicy="no-referrer"
-                      onError={() =>
-                        setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
-                      }
-                      className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded"
-                    />
-                  ) : (
-                    <DynamicIcon
-                      name={item.iconValue || 'Globe'}
-                      className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
-                    />
-                  )}
+                  <div className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center">
+                    {hasCustomPhoto ? (
+                      <img
+                        src={item.iconValue}
+                        alt={item.title}
+                        onError={() =>
+                          setFailedCustomPhotos((prev) => ({
+                            ...prev,
+                            [customPhotoKey]: true,
+                          }))
+                        }
+                        className="w-full h-full object-cover"
+                      />
+                    ) : isDirectory ? (
+                      <HardDrive className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75]" />
+                    ) : favicon ? (
+                      <img
+                        src={favicon}
+                        alt={item.title}
+                        referrerPolicy="no-referrer"
+                        onError={() =>
+                          setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
+                        }
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded"
+                      />
+                    ) : (
+                      <DynamicIcon
+                        name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                        className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
+                      />
+                    )}
+                  </div>
 
                   {item.isPinned && (
                     <span
@@ -465,21 +485,45 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             Pintasan Lainnya ({overflowItems.length})
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {overflowItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onMouseEnter={() => setInspectedItem(item)}
-                onClick={() => onLaunch(item)}
-                className="flex items-center gap-2 p-2 rounded-xl border border-amber-500/25 bg-neutral-900/75 hover:bg-amber-500/15 hover:border-amber-400 text-left transition-colors cursor-pointer"
-              >
-                <DynamicIcon
-                  name={item.iconValue || (item.type === 'directory' ? 'HardDrive' : 'Globe')}
-                  className="w-4 h-4 text-amber-400 shrink-0"
-                />
-                <span className="text-xs text-neutral-200 truncate">{item.title}</span>
-              </button>
-            ))}
+            {overflowItems.map((item) => {
+              const customPhotoKey = `${item.id}:${item.iconValue || ''}`;
+              const hasCustomPhoto =
+                item.iconType === 'custom' &&
+                isImageIcon(item.iconValue) &&
+                !failedCustomPhotos[customPhotoKey];
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseEnter={() => setInspectedItem(item)}
+                  onClick={() => onLaunch(item)}
+                  className="flex items-center gap-2 p-2 rounded-xl border border-amber-500/25 bg-neutral-900/75 hover:bg-amber-500/15 hover:border-amber-400 text-left transition-colors cursor-pointer"
+                >
+                  {hasCustomPhoto ? (
+                    <img
+                      src={item.iconValue}
+                      alt={item.title}
+                      onError={() =>
+                        setFailedCustomPhotos((prev) => ({
+                          ...prev,
+                          [customPhotoKey]: true,
+                        }))
+                      }
+                      className="w-5 h-5 rounded object-cover shrink-0"
+                    />
+                  ) : item.type === 'directory' ? (
+                    <HardDrive className="w-4 h-4 text-amber-400 shrink-0" />
+                  ) : (
+                    <DynamicIcon
+                      name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                      className="w-4 h-4 text-amber-400 shrink-0"
+                    />
+                  )}
+                  <span className="text-xs text-neutral-200 truncate">{item.title}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
