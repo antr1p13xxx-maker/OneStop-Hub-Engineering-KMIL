@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Shield,
@@ -8,10 +8,9 @@ import {
   Check,
   AlertCircle,
   KeyRound,
-  UserCheck,
 } from 'lucide-react';
 import { UserRole } from '../types';
-import { ROLE_CONFIGS, verifyRolePassword, ROLE_PASSWORDS } from '../services/auth';
+import { ROLE_CONFIGS, verifyRolePassword } from '../services/auth';
 
 interface RoleSwitchModalProps {
   isOpen: boolean;
@@ -31,6 +30,16 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedRole(currentRole);
+      setPassword('');
+      setShowPassword(false);
+      setError('');
+      setSuccessMsg('');
+    }
+  }, [isOpen, currentRole]);
 
   if (!isOpen) return null;
 
@@ -169,8 +178,9 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">
-                  Sandi: Eng123
+                <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                  <Lock className="w-3 h-3" />
+                  <span>Perlu Sandi</span>
                 </span>
               </div>
               <p className="text-neutral-600 dark:text-neutral-400 pl-6 leading-relaxed">
@@ -199,8 +209,9 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono">
-                  Sandi: Eng159
+                <span className="inline-flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                  <Lock className="w-3 h-3" />
+                  <span>Perlu Sandi</span>
                 </span>
               </div>
               <p className="text-neutral-600 dark:text-neutral-400 pl-6 leading-relaxed">
@@ -221,7 +232,7 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={`Masukkan sandi (${selectedRole === 'lead' ? 'Eng123' : 'Eng159'})`}
+                  placeholder="Masukkan kata sandi..."
                   className="w-full pl-9 pr-16 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   autoFocus
                 />
@@ -234,7 +245,7 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                Petunjuk sandi resmi: <code className="font-mono text-neutral-800 dark:text-neutral-200 font-semibold">{ROLE_PASSWORDS[selectedRole]}</code>
+                Kata sandi bersifat rahasia. Masukkan sandi yang diberikan oleh administrator tim.
               </p>
             </div>
           )}

@@ -1,7 +1,5 @@
 import { UserRole, RolePermissions, RoleConfig } from '../types';
 
-const STORAGE_ROLE_KEY = 'onestop_hub_current_role_v1';
-
 export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   viewer: {
     role: 'viewer',
@@ -62,27 +60,28 @@ export const ROLE_PASSWORDS: Record<'lead' | 'manager', string> = {
   manager: 'Eng159',
 };
 
+const SESSION_ROLE_KEY = 'onestop_hub_session_role_v1';
+const LEGACY_STORAGE_ROLE_KEY = 'onestop_hub_current_role_v1';
+
 export function getStoredRole(): UserRole {
   try {
-    const saved = localStorage.getItem(STORAGE_ROLE_KEY) as UserRole;
+    // Clean up legacy localStorage key so previous default 'manager' doesn't bypass initial viewer access
+    if (localStorage.getItem(LEGACY_STORAGE_ROLE_KEY)) {
+      localStorage.removeItem(LEGACY_STORAGE_ROLE_KEY);
+    }
+    const saved = sessionStorage.getItem(SESSION_ROLE_KEY) as UserRole | null;
     if (saved && (saved === 'viewer' || saved === 'lead' || saved === 'manager')) {
       return saved;
     }
-    // Default to manager or viewer?
-    // Setting default to manager on first load or viewer with easy switch:
-    // Starting as manager or viewer? The user specifically asked:
-    // "tambahkan akses Viewer (hanya bisa lihat), Lead Engineering ( password Eng123) tidak bisa Menghapus, Manager Engineering full akses"
-    // Let's default to Manager or Viewer. If default is viewer, user can test switching right away!
-    // Or if default is manager, user is in full control and can switch to Lead / Viewer to test.
-    return 'manager';
+    return 'viewer';
   } catch {
-    return 'manager';
+    return 'viewer';
   }
 }
 
 export function saveStoredRole(role: UserRole): void {
   try {
-    localStorage.setItem(STORAGE_ROLE_KEY, role);
+    sessionStorage.setItem(SESSION_ROLE_KEY, role);
   } catch {
     // Ignore
   }

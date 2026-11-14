@@ -108,7 +108,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [previousViewMode, setPreviousViewMode] = useState<ViewMode>('grid');
   const [cardDensity, setCardDensity] = useState<CardDensity>('medium');
-  const [currentRole, setCurrentRole] = useState<UserRole>('manager');
+  const [currentRole, setCurrentRole] = useState<UserRole>('viewer');
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsFocusSection, setSettingsFocusSection] = useState<'logo' | 'firebase' | null>(null);
