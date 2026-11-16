@@ -128,7 +128,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setLogoError(null);
     setIsProcessingLogo(true);
     try {
-      const dataUrl = await processLogoImageFile(file, 256);
+      let dataUrl = await processLogoImageFile(file, 256);
+      if (dataUrl.length > 250000) {
+        dataUrl = await processLogoImageFile(file, 160);
+      }
+      if (dataUrl.length > 250000) {
+        setLogoError('Ukuran foto logo terlalu besar untuk Firestore (maksimal 250KB). Pilih gambar yang lebih kecil.');
+        return;
+      }
       setPreviewImgError(false);
       setLogoUrlInput('');
       onSaveCustomLogo({
@@ -154,6 +161,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('data:image/')) {
       setLogoError('URL harus diawali http:// atau https://');
+      return;
+    }
+    if (trimmed.length > 250000) {
+      setLogoError('URL foto terlalu panjang (maksimal 250KB).');
       return;
     }
     setLogoError(null);
@@ -259,10 +270,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Logo OneStop Hub Engineering (Foto Kustom)</span>
+                  <span>Logo OneStop Hub (Foto Kustom)</span>
                 </h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                  Ganti ikon bawaan dengan foto tim, logo perusahaan, atau gambar pilihan Anda. Tampil di Header dan inti J.A.R.V.I.S. HUD.
+                  Ganti logo bawaan dengan foto atau gambar pilihan Anda. Tampil di Header, Orbit Hub, tab browser, dan J.A.R.V.I.S. HUD.
                 </p>
               </div>
               {customLogo?.src && canEditLogo && (
@@ -335,10 +346,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenRoleSwitch();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer shrink-0"
+                  >
                     <Lock className="w-3.5 h-3.5" />
-                    <span>Hanya Lead/Manager</span>
-                  </div>
+                    <span>Beralih ke Lead/Manager untuk Ganti Foto</span>
+                  </button>
                 )}
               </div>
 

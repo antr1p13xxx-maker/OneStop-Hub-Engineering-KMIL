@@ -82,44 +82,58 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between gap-8 h-16">
           {/* Zone 1: Single text wordmark + customizable logo photo */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <div className="relative group/logo">
+            <div className="flex items-center gap-2.5 group/logo">
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onSelectGroupFilter('all')}
+                  className="flex items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  title="OneStop Hub Engineering"
+                >
+                  {hasValidLogo ? (
+                    <div className="w-9 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex items-center justify-center shadow-xs">
+                      <img
+                        src={customLogo!.src}
+                        alt="OneStop Hub Engineering"
+                        onError={() => setLogoImgError(true)}
+                        className={`w-full h-full ${
+                          customLogo!.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
+                        }`}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                  )}
+                </button>
+
+                {onOpenLogoSettings && (
+                  <button
+                    type="button"
+                    onClick={onOpenLogoSettings}
+                    title={
+                      canEditLogo
+                        ? 'Ganti Foto Logo OneStop Hub'
+                        : 'Ganti Foto Logo OneStop Hub (Beralih ke Lead/Manager)'
+                    }
+                    aria-label="Ganti Foto Logo OneStop Hub"
+                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-500 flex items-center justify-center shadow-xs opacity-90 group-hover/logo:opacity-100 hover:scale-110 transition-all cursor-pointer"
+                  >
+                    <Camera className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={() => onSelectGroupFilter('all')}
-                className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
+                className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
               >
-                {hasValidLogo ? (
-                  <div className="w-9 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex items-center justify-center shadow-xs shrink-0">
-                    <img
-                      src={customLogo!.src}
-                      alt="OneStop Hub Engineering"
-                      onError={() => setLogoImgError(true)}
-                      className={`w-full h-full ${
-                        customLogo!.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
-                      }`}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-                    <Layers className="w-5 h-5" />
-                  </div>
-                )}
                 <span className="text-lg font-bold tracking-tight text-neutral-900 dark:text-neutral-100 whitespace-nowrap">
                   OneStop Hub Engineering
                 </span>
               </button>
-
-              {canEditLogo && onOpenLogoSettings && (
-                <button
-                  type="button"
-                  onClick={onOpenLogoSettings}
-                  title="Ganti Foto Logo OneStop Hub Engineering"
-                  aria-label="Ganti Foto Logo"
-                  className="absolute -bottom-1 -left-1 w-5 h-5 rounded-full bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-400 flex items-center justify-center shadow-xs opacity-0 group-hover/logo:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
-                >
-                  <Camera className="w-2.5 h-2.5" />
-                </button>
-              )}
             </div>
           </div>
 

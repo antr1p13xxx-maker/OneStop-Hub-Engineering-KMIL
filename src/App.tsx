@@ -1244,6 +1244,11 @@ export default function App() {
             selectedGroupFilter={selectedGroupFilter}
             onSelectGroupFilter={handleSelectGroupFilter}
             customLogo={customLogo}
+            canEditLogo={permissions.canEditShortcut}
+            onOpenLogoSettings={() => {
+              setSettingsFocusSection('logo');
+              setIsSettingsOpen(true);
+            }}
             canAddShortcut={permissions.canAddShortcut}
             canEditShortcut={permissions.canEditShortcut}
             canDeleteShortcut={permissions.canDeleteShortcut}

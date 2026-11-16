@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   HardDrive,
   ExternalLink,
@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  Camera,
 } from 'lucide-react';
 import { ShortcutItem, ShortcutGroup, CustomLogoConfig } from '../types';
 import { DynamicIcon, isImageIcon } from './DynamicIcon';
@@ -23,6 +24,8 @@ interface OrbitHubViewProps {
   selectedGroupFilter: string;
   onSelectGroupFilter: (groupId: string) => void;
   customLogo?: CustomLogoConfig | null;
+  canEditLogo?: boolean;
+  onOpenLogoSettings?: () => void;
   canAddShortcut: boolean;
   canEditShortcut: boolean;
   canDeleteShortcut: boolean;
@@ -39,6 +42,8 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   selectedGroupFilter,
   onSelectGroupFilter,
   customLogo,
+  canEditLogo = false,
+  onOpenLogoSettings,
   canAddShortcut,
   canEditShortcut,
   canDeleteShortcut,
@@ -53,6 +58,10 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   const [failedFavicons, setFailedFavicons] = useState<Record<string, boolean>>({});
   const [failedCustomPhotos, setFailedCustomPhotos] = useState<Record<string, boolean>>({});
   const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [customLogo?.src]);
 
   const activeGroup =
     selectedGroupFilter !== 'all'
@@ -339,21 +348,59 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                     />
                   </div>
                 ) : customLogo?.src && !logoError ? (
-                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl border border-amber-500/45 bg-neutral-900/90 overflow-hidden mx-auto mb-1.5 shadow-[0_0_20px_rgba(245,158,11,0.25)]">
-                    <img
-                      src={customLogo.src}
-                      alt="OneStop Hub Engineering"
-                      onError={() => setLogoError(true)}
-                      className={`w-full h-full ${
-                        customLogo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
-                      }`}
-                    />
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
+                    <div className="w-full h-full rounded-xl border border-amber-500/45 bg-neutral-900/90 overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.25)]">
+                      <img
+                        src={customLogo.src}
+                        alt="OneStop Hub Engineering"
+                        onError={() => setLogoError(true)}
+                        className={`w-full h-full ${
+                          customLogo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
+                        }`}
+                      />
+                    </div>
+                    {!activeGroup && onOpenLogoSettings && (
+                      <button
+                        type="button"
+                        onClick={onOpenLogoSettings}
+                        title={
+                          canEditLogo
+                            ? 'Ganti Foto Logo OneStop Hub'
+                            : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
+                        }
+                        aria-label="Ganti Foto Logo OneStop Hub"
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
+                      >
+                        <Camera className="w-2.5 h-2.5" />
+                      </button>
+                    )}
                   </div>
                 ) : activeGroup ? (
                   <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center mx-auto mb-1.5 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
                     <DynamicIcon name={activeGroup.icon} className="w-5 h-5" />
                   </div>
-                ) : null}
+                ) : (
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
+                    <div className="w-full h-full rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                    {onOpenLogoSettings && (
+                      <button
+                        type="button"
+                        onClick={onOpenLogoSettings}
+                        title={
+                          canEditLogo
+                            ? 'Ganti Foto Logo OneStop Hub'
+                            : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
+                        }
+                        aria-label="Ganti Foto Logo OneStop Hub"
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
+                      >
+                        <Camera className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <h2 className="text-lg sm:text-3xl font-extrabold tracking-tight leading-tight">
                   <span className="text-white">{firstTitleWord}</span>
