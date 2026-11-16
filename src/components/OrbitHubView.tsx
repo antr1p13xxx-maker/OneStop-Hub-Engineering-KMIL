@@ -29,6 +29,8 @@ interface OrbitHubViewProps {
   canAddShortcut: boolean;
   canEditShortcut: boolean;
   canDeleteShortcut: boolean;
+  canDeleteGroup?: boolean;
+  onRequestDeleteGroup?: (groupId: string) => void;
   onLaunch: (shortcut: ShortcutItem) => void;
   onEdit: (shortcut: ShortcutItem) => void;
   onDelete: (id: string) => void;
@@ -47,6 +49,8 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   canAddShortcut,
   canEditShortcut,
   canDeleteShortcut,
+  canDeleteGroup = false,
+  onRequestDeleteGroup,
   onLaunch,
   onEdit,
   onDelete,
@@ -186,6 +190,17 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {activeGroup && canDeleteGroup && groups.length > 1 && onRequestDeleteGroup && (
+            <button
+              type="button"
+              onClick={() => onRequestDeleteGroup(activeGroup.id)}
+              title={`Hapus grup ${activeGroup.name}`}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-rose-500/40 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Hapus Grup</span>
+            </button>
+          )}
           {activeGroup && (
             <button
               type="button"

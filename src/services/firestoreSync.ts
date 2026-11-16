@@ -663,6 +663,58 @@ export async function syncGroupsToFirestore(
   }
 }
 
+export async function deleteGroupInFirestore(
+  userId: string,
+  groupId: string,
+  mode: 'reassign' | 'purge',
+  shortcutIds: string[],
+  targetGroupId?: string
+): Promise<void> {
+  const uid = sanitizeId(userId, 'user');
+  const gId = sanitizeId(groupId, 'group');
+
+  if (shortcutIds.length > 0) {
+    if (mode === 'reassign' && targetGroupId) {
+      const safeTargetGroupId = sanitizeId(targetGroupId, 'group');
+      for (let i = 0; i < shortcutIds.length; i += 400) {
+        const batch = writeBatch(db);
+        shortcutIds.slice(i, i + 400).forEach((rawId) => {
+          const scId = sanitizeId(rawId, 'sc');
+          batch.update(doc(db, 'workspaces', uid, 'shortcuts', scId), {
+            groupId: safeTargetGroupId,
+            updatedAt: serverTimestamp(),
+          });
+        });
+        try {
+          await batch.commit();
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `workspaces/${uid}/shortcuts`);
+        }
+      }
+    } else if (mode === 'purge') {
+      for (let i = 0; i < shortcutIds.length; i += 400) {
+        const batch = writeBatch(db);
+        shortcutIds.slice(i, i + 400).forEach((rawId) => {
+          const scId = sanitizeId(rawId, 'sc');
+          batch.delete(doc(db, 'workspaces', uid, 'shortcuts', scId));
+        });
+        try {
+          await batch.commit();
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `workspaces/${uid}/shortcuts`);
+        }
+      }
+    }
+  }
+
+  const groupPath = `workspaces/${uid}/groups/${gId}`;
+  try {
+    await deleteDoc(doc(db, 'workspaces', uid, 'groups', gId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, groupPath);
+  }
+}
+
 export async function reassignShortcutsGroupInFirestore(
   userId: string,
   shortcutIds: string[],

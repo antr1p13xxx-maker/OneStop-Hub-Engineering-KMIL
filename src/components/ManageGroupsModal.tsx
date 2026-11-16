@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -11,10 +11,17 @@ import {
   Link2,
   Image as ImageIcon,
   RotateCcw,
+  AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { ShortcutGroup, ShortcutItem } from '../types';
 import { DynamicIcon, AVAILABLE_GROUP_ICONS, isImageIcon } from './DynamicIcon';
 import { processLogoImageFile } from '../utils/imageHelper';
+
+export interface DeleteGroupOptions {
+  mode: 'reassign' | 'purge';
+  targetGroupId?: string;
+}
 
 interface ManageGroupsModalProps {
   isOpen: boolean;
@@ -23,8 +30,11 @@ interface ManageGroupsModalProps {
   shortcuts: ShortcutItem[];
   canManageGroups?: boolean;
   canDeleteGroup?: boolean;
+  initialDeleteGroupId?: string | null;
   onSaveGroups: (groups: ShortcutGroup[]) => void;
   onReassignShortcuts: (fromGroupId: string, toGroupId: string) => void;
+  onDeleteGroup?: (groupId: string, options: DeleteGroupOptions) => void;
+  onOpenRoleSwitch?: () => void;
 }
 
 const COLOR_OPTIONS: Array<{ value: ShortcutGroup['color']; label: string; bg: string }> = [
@@ -45,8 +55,11 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
   shortcuts,
   canManageGroups = true,
   canDeleteGroup = true,
+  initialDeleteGroupId = null,
   onSaveGroups,
   onReassignShortcuts,
+  onDeleteGroup,
+  onOpenRoleSwitch,
 }) => {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -58,7 +71,27 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
   const [photoUrlInput, setPhotoUrlInput] = useState('');
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'reassign' | 'purge'>('reassign');
+  const [reassignTargetGroupId, setReassignTargetGroupId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmDeleteGroupId(null);
+      return;
+    }
+    setError('');
+    if (initialDeleteGroupId && groups.some((g) => g.id === initialDeleteGroupId)) {
+      const fallback = groups.find((g) => g.id !== initialDeleteGroupId);
+      setConfirmDeleteGroupId(initialDeleteGroupId);
+      setDeleteMode('reassign');
+      setReassignTargetGroupId(fallback?.id || '');
+      setIsCreatingNew(false);
+      setEditingGroupId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialDeleteGroupId]);
 
   if (!isOpen) return null;
 
@@ -164,26 +197,52 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
     }
   };
 
-  const handleDeleteGroup = (groupId: string) => {
+  const handleRequestDeleteGroup = (groupId: string) => {
     if (groups.length <= 1) {
       setError('Minimal harus ada satu grup kategori dalam dasbor.');
       return;
     }
-
-    const linkedShortcuts = shortcuts.filter((s) => s.groupId === groupId);
     const targetFallbackGroup = groups.find((g) => g.id !== groupId);
+    setError('');
+    setIsCreatingNew(false);
+    setEditingGroupId(null);
+    setConfirmDeleteGroupId(groupId);
+    setDeleteMode('reassign');
+    setReassignTargetGroupId(targetFallbackGroup?.id || '');
+  };
 
-    if (linkedShortcuts.length > 0 && targetFallbackGroup) {
-      const confirmed = window.confirm(
-        `Grup ini berisi ${linkedShortcuts.length} pintasan. Pintasan tersebut akan dipindahkan otomatis ke grup "${targetFallbackGroup.name}". Lanjutkan hapus grup?`
-      );
-      if (!confirmed) return;
-      onReassignShortcuts(groupId, targetFallbackGroup.id);
+  const handleConfirmDeleteGroup = () => {
+    if (!confirmDeleteGroupId) return;
+    if (groups.length <= 1) {
+      setError('Minimal harus ada satu grup kategori dalam dasbor.');
+      setConfirmDeleteGroupId(null);
+      return;
     }
 
-    const updated = groups.filter((g) => g.id !== groupId);
-    onSaveGroups(updated);
-    if (editingGroupId === groupId) setEditingGroupId(null);
+    const fallbackGroup = groups.find((g) => g.id !== confirmDeleteGroupId);
+    const chosenTargetId =
+      deleteMode === 'reassign'
+        ? reassignTargetGroupId || fallbackGroup?.id
+        : undefined;
+
+    if (onDeleteGroup) {
+      onDeleteGroup(confirmDeleteGroupId, {
+        mode: deleteMode,
+        targetGroupId: chosenTargetId,
+      });
+    } else {
+      const linkedShortcuts = shortcuts.filter((s) => s.groupId === confirmDeleteGroupId);
+      if (linkedShortcuts.length > 0 && chosenTargetId) {
+        onReassignShortcuts(confirmDeleteGroupId, chosenTargetId);
+      }
+      const updated = groups
+        .filter((g) => g.id !== confirmDeleteGroupId)
+        .map((g, idx) => ({ ...g, order: idx + 1 }));
+      onSaveGroups(updated);
+    }
+
+    if (editingGroupId === confirmDeleteGroupId) setEditingGroupId(null);
+    setConfirmDeleteGroupId(null);
   };
 
   const handleMoveOrder = (index: number, direction: 'up' | 'down') => {
@@ -226,19 +285,144 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
         {/* Content */}
         <div className="mt-5 space-y-4">
           {!canManageGroups && (
-            <div className="p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 text-xs border border-neutral-200 dark:border-neutral-700">
-              Mode <strong>Viewer</strong>: Anda hanya dapat melihat daftar grup. Beralih ke Lead Engineering atau Manager untuk mengedit.
+            <div className="p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs border border-neutral-200 dark:border-neutral-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span>
+                Mode <strong>Viewer</strong>: Anda hanya dapat melihat daftar grup. Beralih ke Lead atau Manager untuk mengedit/menghapus.
+              </span>
+              {onOpenRoleSwitch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenRoleSwitch();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shrink-0 transition-colors cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Ubah Peran</span>
+                </button>
+              )}
             </div>
           )}
 
           {!canDeleteGroup && canManageGroups && (
-            <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800">
-              Peran <strong>Lead Engineering</strong>: Diizinkan menambah dan mengedit grup, tetapi tidak dapat menghapus kategori grup.
+            <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span>
+                Peran <strong>Lead Engineering</strong>: Bisa tambah & edit grup. Untuk <strong>hapus grup</strong>, gunakan peran Manager.
+              </span>
+              {onOpenRoleSwitch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenRoleSwitch();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold shrink-0 transition-colors cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Aktifkan Manager</span>
+                </button>
+              )}
             </div>
           )}
 
+          {error && !isCreatingNew && !editingGroupId && (
+            <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs border border-rose-200 dark:border-rose-900">
+              {error}
+            </div>
+          )}
+
+          {/* In-Modal Delete Group Confirmation */}
+          {confirmDeleteGroupId && canDeleteGroup && (() => {
+            const targetGroup = groups.find((g) => g.id === confirmDeleteGroupId);
+            if (!targetGroup) return null;
+            const linkedCount = shortcuts.filter((s) => s.groupId === targetGroup.id).length;
+            const otherGroups = groups.filter((g) => g.id !== targetGroup.id);
+
+            return (
+              <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/70 bg-rose-50/70 dark:bg-rose-950/30 space-y-3 text-xs animate-in fade-in duration-150">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-rose-900 dark:text-rose-200">
+                      Hapus Grup &ldquo;{targetGroup.name}&rdquo;?
+                    </h3>
+                    <p className="text-rose-800/90 dark:text-rose-300/90 mt-0.5">
+                      {linkedCount === 0
+                        ? 'Grup ini tidak memiliki pintasan dan akan dihapus permanen.'
+                        : `Grup ini berisi ${linkedCount} pintasan. Pilih perlakuan untuk pintasan di dalamnya:`}
+                    </p>
+                  </div>
+                </div>
+
+                {linkedCount > 0 && (
+                  <div className="space-y-2 pl-6">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deleteGroupMode"
+                        checked={deleteMode === 'reassign'}
+                        onChange={() => setDeleteMode('reassign')}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1 space-y-1.5">
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100 block">
+                          Pindahkan {linkedCount} pintasan ke grup lain (Direkomendasikan)
+                        </span>
+                        {deleteMode === 'reassign' && (
+                          <select
+                            value={reassignTargetGroupId}
+                            onChange={(e) => setReassignTargetGroupId(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100"
+                          >
+                            {otherGroups.map((og) => (
+                              <option key={og.id} value={og.id}>
+                                {og.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deleteGroupMode"
+                        checked={deleteMode === 'purge'}
+                        onChange={() => setDeleteMode('purge')}
+                        className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span className="font-semibold text-rose-700 dark:text-rose-300">
+                        Hapus grup beserta {linkedCount} pintasannya secara permanen
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteGroupId(null)}
+                    className="px-3 py-1.5 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/70 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDeleteGroup}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ya, Hapus Grup</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Action to create new group */}
-          {canManageGroups && !isCreatingNew && !editingGroupId && (
+          {canManageGroups && !isCreatingNew && !editingGroupId && !confirmDeleteGroupId && (
             <button
               type="button"
               onClick={handleStartCreate}
@@ -519,9 +703,14 @@ export const ManageGroupsModal: React.FC<ManageGroupsModalProps> = ({
                       {canDeleteGroup && (
                         <button
                           type="button"
-                          onClick={() => handleDeleteGroup(group.id)}
-                          title="Hapus grup"
-                          className="p-1 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                          onClick={() => handleRequestDeleteGroup(group.id)}
+                          disabled={groups.length <= 1}
+                          title={
+                            groups.length <= 1
+                              ? 'Minimal 1 grup harus tersisa'
+                              : `Hapus grup ${group.name}`
+                          }
+                          className="p-1 text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 disabled:opacity-30 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

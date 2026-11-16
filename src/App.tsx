@@ -23,6 +23,8 @@ import {
   Grid3X3,
   Orbit,
   CloudAlert,
+  Trash2,
+  Settings2,
 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ShortcutItem, ShortcutGroup, ViewMode, FilterType, ShortcutType, UserRole, CardDensity, CustomLogoConfig } from './types';
@@ -76,6 +78,7 @@ import {
   toggleShortcutPinInFirestore,
   deleteShortcutFromFirestore,
   syncGroupsToFirestore,
+  deleteGroupInFirestore,
   reassignShortcutsGroupInFirestore,
   savePreferencesToFirestore,
   saveCustomLogoToFirestore,
@@ -133,6 +136,7 @@ export default function App() {
   const [addModalDefaultGroupId, setAddModalDefaultGroupId] = useState<string | undefined>();
   const [addModalDefaultType, setAddModalDefaultType] = useState<ShortcutType>('web');
   const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
+  const [deleteTargetGroupId, setDeleteTargetGroupId] = useState<string | null>(null);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -735,6 +739,80 @@ export default function App() {
     }
   };
 
+  // Delete group cleanly (reassign or purge shortcuts + reset active filter + sync Firestore)
+  const handleDeleteGroup = (
+    groupId: string,
+    options: { mode: 'reassign' | 'purge'; targetGroupId?: string }
+  ) => {
+    if (groups.length <= 1) {
+      setToast({
+        message: 'Tidak Dapat Menghapus Grup Terakhir',
+        details: 'Minimal harus ada satu grup kategori di dalam dasbor.',
+      });
+      return;
+    }
+
+    const deletedGroup = groups.find((g) => g.id === groupId);
+    const affectedShortcuts = shortcuts.filter((s) => s.groupId === groupId);
+    const affectedIds = affectedShortcuts.map((s) => s.id);
+    const fallbackGroup = groups.find((g) => g.id !== groupId);
+    const targetGroupId =
+      options.mode === 'reassign'
+        ? options.targetGroupId || fallbackGroup?.id
+        : undefined;
+
+    if (options.mode === 'reassign' && targetGroupId) {
+      const nextShortcuts = shortcuts.map((s) =>
+        s.groupId === groupId ? { ...s, groupId: targetGroupId } : s
+      );
+      updateShortcuts(nextShortcuts);
+    } else if (options.mode === 'purge') {
+      const nextShortcuts = shortcuts.filter((s) => s.groupId !== groupId);
+      updateShortcuts(nextShortcuts);
+    }
+
+    const nextGroups = groups
+      .filter((g) => g.id !== groupId)
+      .map((g, idx) => ({ ...g, order: idx + 1 }));
+    setGroups(nextGroups);
+    saveStoredGroups(nextGroups);
+
+    if (selectedGroupFilter === groupId) {
+      handleSelectGroupFilter('all');
+    }
+
+    if (firebaseUser) {
+      void deleteGroupInFirestore(
+        firebaseUser.uid,
+        groupId,
+        options.mode,
+        affectedIds,
+        targetGroupId
+      ).catch((err) => {
+        setCloudError({
+          message: err instanceof Error ? err.message : 'Gagal menghapus grup di Firebase.',
+          isQuota: isQuotaExceededError(err),
+        });
+      });
+    }
+
+    const targetGroupName = groups.find((g) => g.id === targetGroupId)?.name;
+    setToast({
+      message: `Grup "${deletedGroup?.name || 'Kategori'}" Dihapus`,
+      details:
+        affectedIds.length === 0
+          ? 'Kategori grup berhasil dihapus.'
+          : options.mode === 'purge'
+          ? `${affectedIds.length} pintasan di dalamnya turut dihapus.`
+          : `${affectedIds.length} pintasan dipindahkan ke grup "${targetGroupName || 'lainnya'}".`,
+    });
+  };
+
+  const handleOpenDeleteGroupModal = (groupId: string) => {
+    setDeleteTargetGroupId(groupId);
+    setIsManageGroupsOpen(true);
+  };
+
   // Reset to default
   const handleResetDefault = () => {
     resetAllData();
@@ -847,7 +925,10 @@ export default function App() {
         }}
         onToggleTheme={handleToggleTheme}
         onOpenAddModal={() => handleOpenAddWithGroup(undefined, 'web')}
-        onOpenManageGroups={() => setIsManageGroupsOpen(true)}
+        onOpenManageGroups={() => {
+          setDeleteTargetGroupId(null);
+          setIsManageGroupsOpen(true);
+        }}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenHelpModal={() => setIsHelpModalOpen(true)}
         onOpenSettings={() => {
@@ -1169,6 +1250,19 @@ export default function App() {
               );
             })}
 
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteTargetGroupId(null);
+                setIsManageGroupsOpen(true);
+              }}
+              title="Tambah, Edit, atau Hapus Grup"
+              className="flex items-center gap-1 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-neutral-300 dark:border-neutral-700 transition-colors shrink-0"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              <span>Kelola Grup</span>
+            </button>
+
             {/* Quick Type filter separator */}
             <div className="h-4 w-px bg-neutral-300 dark:bg-neutral-700 mx-1 shrink-0" />
 
@@ -1252,6 +1346,8 @@ export default function App() {
             canAddShortcut={permissions.canAddShortcut}
             canEditShortcut={permissions.canEditShortcut}
             canDeleteShortcut={permissions.canDeleteShortcut}
+            canDeleteGroup={permissions.canDeleteGroup}
+            onRequestDeleteGroup={handleOpenDeleteGroupModal}
             onLaunch={handleLaunch}
             onEdit={(s) => {
               setEditingShortcut(s);
@@ -1312,16 +1408,29 @@ export default function App() {
                         </div>
                       </div>
 
-                      {permissions.canAddShortcut && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAddWithGroup(group.id, group.id.includes('drive') ? 'directory' : 'web')}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Tambah ke Grup Ini</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {permissions.canAddShortcut && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddWithGroup(group.id, group.id.includes('drive') ? 'directory' : 'web')}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Tambah ke Grup Ini</span>
+                          </button>
+                        )}
+                        {permissions.canDeleteGroup && groups.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteGroupModal(group.id)}
+                            title={`Hapus grup ${group.name}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Hapus Grup</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Cards within this group */}
@@ -1480,13 +1589,19 @@ export default function App() {
 
       <ManageGroupsModal
         isOpen={isManageGroupsOpen}
-        onClose={() => setIsManageGroupsOpen(false)}
+        onClose={() => {
+          setIsManageGroupsOpen(false);
+          setDeleteTargetGroupId(null);
+        }}
         groups={groups}
         shortcuts={shortcuts}
         canManageGroups={permissions.canManageGroups}
         canDeleteGroup={permissions.canDeleteGroup}
+        initialDeleteGroupId={deleteTargetGroupId}
         onSaveGroups={updateGroups}
         onReassignShortcuts={handleReassignShortcuts}
+        onDeleteGroup={handleDeleteGroup}
+        onOpenRoleSwitch={() => setIsRoleSwitchOpen(true)}
       />
 
       <LocalDirectoryHelpModal
