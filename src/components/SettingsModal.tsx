@@ -34,7 +34,13 @@ import { User } from 'firebase/auth';
 import { CardDensity, ViewMode, UserRole, CustomLogoConfig, LogoFitMode } from '../types';
 import { ROLE_CONFIGS } from '../services/auth';
 import { processLogoImageFile } from '../utils/imageHelper';
-import { FIREBASE_PROJECT_ID, FIREBASE_DATABASE_ID, FIREBASE_CONSOLE_URL } from '../firebase';
+import {
+  FIREBASE_PROJECT_ID,
+  FIREBASE_APP_ID,
+  FIREBASE_DATABASE_ID,
+  FIREBASE_DATABASE_URL,
+  FIREBASE_CONSOLE_URL,
+} from '../firebase';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -804,9 +810,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span className="text-neutral-800 dark:text-neutral-200 font-semibold">{FIREBASE_PROJECT_ID}</span>
                 </div>
                 <div className="px-3 py-2 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 truncate">
-                  <span className="text-neutral-400 block">Database ID</span>
+                  <span className="text-neutral-400 block">Firestore Database ID</span>
                   <span className="text-neutral-800 dark:text-neutral-200 font-semibold truncate block" title={FIREBASE_DATABASE_ID}>
                     {FIREBASE_DATABASE_ID}
+                  </span>
+                </div>
+                <div className="px-3 py-2 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 truncate">
+                  <span className="text-neutral-400 block">App ID</span>
+                  <span className="text-neutral-800 dark:text-neutral-200 font-semibold truncate block" title={FIREBASE_APP_ID}>
+                    {FIREBASE_APP_ID}
+                  </span>
+                </div>
+                <div className="px-3 py-2 rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 truncate">
+                  <span className="text-neutral-400 block">Database URL</span>
+                  <span className="text-neutral-800 dark:text-neutral-200 font-semibold truncate block" title={FIREBASE_DATABASE_URL}>
+                    {FIREBASE_DATABASE_URL}
                   </span>
                 </div>
               </div>

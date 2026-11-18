@@ -1,0 +1,21 @@
+{
+  "firestore": {
+    "database": "ai-studio-onestopworkspace-6a4bcaf6-d15c-46a5-813a-20dcb7c8b23c",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

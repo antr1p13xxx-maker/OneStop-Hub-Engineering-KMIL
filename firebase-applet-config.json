@@ -1,8 +1,9 @@
 {
   "projectId": "onestop-hub-engineering-kmil",
-  "appId": "1:442528309765:web:ebdebc6e2181ed602e326c",
+  "appId": "1:442528309765:web:7585a07900a358cd2e326c",
   "apiKey": "AIzaSyAoL_HT_UQoxqyvv48SCFIeLZusAaLIBpY",
   "authDomain": "onestop-hub-engineering-kmil.firebaseapp.com",
+  "databaseURL": "https://onestop-hub-engineering-kmil-default-rtdb.asia-southeast1.firebasedatabase.app",
   "firestoreDatabaseId": "ai-studio-onestopworkspace-6a4bcaf6-d15c-46a5-813a-20dcb7c8b23c",
   "storageBucket": "onestop-hub-engineering-kmil.firebasestorage.app",
   "messagingSenderId": "442528309765",
