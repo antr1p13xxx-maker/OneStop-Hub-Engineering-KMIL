@@ -509,3 +509,35 @@ export function saveStoredCustomLogo(logo: import('../types').CustomLogoConfig |
     throw new Error('Penyimpanan lokal penuh. Coba gunakan foto dengan ukuran lebih kecil.');
   }
 }
+
+// UI Style Preference Storage (Claymorphism / Classic)
+const STORAGE_UI_STYLE_KEY = 'onestop_hub_ui_style_v1';
+
+export function getStoredUiStyle(): import('../types').UiStyle {
+  try {
+    const saved = localStorage.getItem(STORAGE_UI_STYLE_KEY);
+    if (saved === 'classic' || saved === 'claymorphism') return saved;
+    return 'claymorphism';
+  } catch {
+    return 'claymorphism';
+  }
+}
+
+export function saveStoredUiStyle(style: import('../types').UiStyle): void {
+  try {
+    localStorage.setItem(STORAGE_UI_STYLE_KEY, style);
+  } catch {
+    // Ignore
+  }
+}
+
+export function applyUiStyleWithTransition(style: import('../types').UiStyle): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.add('theme-transitioning');
+  root.dataset.uiStyle = style === 'claymorphism' ? 'clay' : 'classic';
+  setTimeout(() => {
+    root.classList.remove('theme-transitioning');
+  }, 400);
+}
+

@@ -30,6 +30,8 @@ export type ViewMode = 'grid' | 'list' | 'sections' | 'orbit';
 
 export type CardDensity = 'small' | 'medium' | 'large';
 
+export type UiStyle = 'claymorphism' | 'classic';
+
 export type LogoFitMode = 'cover' | 'contain';
 
 export interface CustomLogoConfig {

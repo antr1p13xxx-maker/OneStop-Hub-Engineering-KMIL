@@ -77,7 +77,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
     >
       {/* Icon + Title + Group */}
       <div className="flex items-center gap-3 min-w-[240px] flex-1">
-        <div className="w-8 h-8 rounded-md bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+        <div className="w-8 h-8 rounded-md bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs clay-icon-well">
           {hasCustomPhoto ? (
             <img
               src={shortcut.iconValue}
@@ -152,7 +152,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
         <button
           type="button"
           onClick={() => onLaunch(shortcut)}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft"
         >
           {isDirectory ? <FolderOpen className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">Buka</span>
@@ -170,7 +170,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200">
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200 clay-modal">
                 {canEditShortcut && (
                   <>
                     <button

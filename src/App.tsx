@@ -25,9 +25,10 @@ import {
   CloudAlert,
   Trash2,
   Settings2,
+  Layers,
 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { ShortcutItem, ShortcutGroup, ViewMode, FilterType, ShortcutType, UserRole, CardDensity, CustomLogoConfig } from './types';
+import { ShortcutItem, ShortcutGroup, ViewMode, FilterType, ShortcutType, UserRole, CardDensity, CustomLogoConfig, UiStyle } from './types';
 import {
   DEFAULT_GROUPS,
   DEFAULT_SHORTCUTS,
@@ -52,6 +53,9 @@ import {
   markJarvisIntroSeenSession,
   getStoredCustomLogo,
   saveStoredCustomLogo,
+  getStoredUiStyle,
+  saveStoredUiStyle,
+  applyUiStyleWithTransition,
   resetAllData,
 } from './services/storage';
 import {
@@ -108,6 +112,7 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState<ShortcutItem[]>([]);
   const [groups, setGroups] = useState<ShortcutGroup[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [uiStyle, setUiStyle] = useState<UiStyle>('claymorphism');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [previousViewMode, setPreviousViewMode] = useState<ViewMode>('grid');
   const [cardDensity, setCardDensity] = useState<CardDensity>('medium');
@@ -153,6 +158,10 @@ export default function App() {
     const initialTheme = getStoredTheme();
     setTheme(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+
+    const initialUiStyle = getStoredUiStyle();
+    setUiStyle(initialUiStyle);
+    document.documentElement.dataset.uiStyle = initialUiStyle === 'claymorphism' ? 'clay' : 'classic';
 
     setShortcuts(getStoredShortcuts());
     setGroups(getStoredGroups());
@@ -430,6 +439,23 @@ export default function App() {
     setToast({
       message: `Beralih ke ${nextTheme === 'dark' ? 'Mode Gelap 🌙' : 'Mode Terang ☀️'}`,
       details: 'Preferensi tema disimpan dengan transisi visual halus.',
+    });
+  };
+
+  // Change UI design style (Claymorphism 3D vs Classic Minimalist)
+  const handleUiStyleChange = (nextStyle: UiStyle) => {
+    setUiStyle(nextStyle);
+    saveStoredUiStyle(nextStyle);
+    applyUiStyleWithTransition(nextStyle);
+    setToast({
+      message:
+        nextStyle === 'claymorphism'
+          ? 'Gaya UI Claymorphism 3D Diaktifkan'
+          : 'Gaya UI Klasik Minimalis Diaktifkan',
+      details:
+        nextStyle === 'claymorphism'
+          ? 'Permukaan lembut membulat dengan kedalaman 3D taktil kini aktif.'
+          : 'Tampilan datar ringkas dengan garis tepi tajam kini aktif.',
     });
   };
 
@@ -910,7 +936,7 @@ export default function App() {
   }, [cardDensity]);
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col font-sans transition-colors">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col font-sans clay-canvas transition-colors">
       {/* 1. Header (3-Zone Top Bar Contract) */}
       <Header
         theme={theme}
@@ -980,7 +1006,7 @@ export default function App() {
         )}
         {/* Role Notification Banner for Viewer or Lead */}
         {currentRole === 'viewer' && (
-          <div className="bg-neutral-100 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700/80 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs">
+          <div className="bg-neutral-100 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700/80 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
             <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
               <Eye className="w-4 h-4 text-neutral-500 shrink-0" />
               <span>
@@ -989,7 +1015,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-2.5 py-1 text-xs font-semibold bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg shrink-0 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors"
+              className="px-2.5 py-1 text-xs font-semibold bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg shrink-0 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors clay-btn-soft"
             >
               Masuk (Lead/Manager)
             </button>
@@ -997,7 +1023,7 @@ export default function App() {
         )}
 
         {currentRole === 'lead' && (
-          <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs">
+          <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
             <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
               <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>
@@ -1006,7 +1032,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors"
+              className="px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors clay-btn-soft"
             >
               Ganti Peran
             </button>
@@ -1052,7 +1078,7 @@ export default function App() {
         )}
 
         {/* 4. Controls Strip & Search Bar */}
-        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-xs transition-colors space-y-3">
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-xs clay-surface transition-colors space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Search Input with Ctrl+K trigger */}
             <div className="relative flex-1">
@@ -1062,7 +1088,7 @@ export default function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari pintasan web, alamat Drive D:, atau catatan..."
-                className="w-full pl-9 pr-24 py-2 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                className="w-full pl-9 pr-24 py-2 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 clay-inset transition-all"
               />
               <button
                 type="button"
@@ -1081,7 +1107,7 @@ export default function App() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'clicks' | 'recent' | 'name')}
-                className="px-2.5 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 clay-inset"
               >
                 <option value="clicks">Paling Sering Digunakan</option>
                 <option value="recent">Baru Saja Dibuka</option>
@@ -1091,7 +1117,7 @@ export default function App() {
               {/* Card Density Switcher (Visible in grid and sections mode) */}
               {(viewMode === 'grid' || viewMode === 'sections') && (
                 <div
-                  className="flex items-center gap-0.5 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-xs"
+                  className="flex items-center gap-0.5 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-xs clay-inset"
                   title="Sesuaikan densitas kartu (S: Kompak, M: Standar, L: Leluasa)"
                 >
                   <button
@@ -1134,7 +1160,7 @@ export default function App() {
               )}
 
               {/* View Mode Segmented Controls */}
-              <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+              <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg clay-inset">
                 <button
                   type="button"
                   onClick={() => {
@@ -1204,12 +1230,31 @@ export default function App() {
                 </button>
               </div>
 
+              {/* UI Style Quick Toggle Button (Claymorphism / Klasik) */}
+              <button
+                type="button"
+                onClick={() => handleUiStyleChange(uiStyle === 'claymorphism' ? 'classic' : 'claymorphism')}
+                title={
+                  uiStyle === 'claymorphism'
+                    ? 'Gaya Claymorphism 3D aktif. Klik untuk beralih ke Klasik Minimalis.'
+                    : 'Gaya Klasik Minimalis aktif. Klik untuk mengaktifkan Claymorphism 3D.'
+                }
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                  uiStyle === 'claymorphism'
+                    ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 clay-btn-soft'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{uiStyle === 'claymorphism' ? 'Clay 3D' : 'Klasik'}</span>
+              </button>
+
               {/* Settings Modal Button in Toolbar */}
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(true)}
                 title="Buka Pengaturan Tampilan & Densitas"
-                className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+                className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors clay-btn-soft"
               >
                 <Sliders className="w-4 h-4" />
               </button>
@@ -1217,14 +1262,14 @@ export default function App() {
           </div>
 
           {/* Group Category Filter Tabs (Zero-pill button styling) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 text-xs">
             <button
               type="button"
               onClick={() => handleSelectGroupFilter('all')}
               className={`px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
                 selectedGroupFilter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                  ? 'bg-indigo-600 text-white shadow-xs clay-btn-primary'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
               }`}
             >
               Semua Grup ({shortcuts.length})
@@ -1240,7 +1285,7 @@ export default function App() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
                     selectedGroupFilter === group.id
                       ? 'bg-amber-500 text-neutral-950 font-semibold shadow-xs'
-                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
                   }`}
                 >
                   <DynamicIcon name={group.icon} className="w-3.5 h-3.5" />
@@ -1257,7 +1302,7 @@ export default function App() {
                 setIsManageGroupsOpen(true);
               }}
               title="Tambah, Edit, atau Hapus Grup"
-              className="flex items-center gap-1 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-neutral-300 dark:border-neutral-700 transition-colors shrink-0"
+              className="flex items-center gap-1 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-neutral-300 dark:border-neutral-700 transition-colors shrink-0 clay-btn-soft"
             >
               <Settings2 className="w-3.5 h-3.5" />
               <span>Kelola Grup</span>
@@ -1271,8 +1316,8 @@ export default function App() {
               onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'directory' ? 'all' : 'directory')}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
                 selectedTypeFilter === 'directory'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                  ? 'bg-emerald-600 text-white clay-btn-emerald'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 clay-btn-soft'
               }`}
             >
               <HardDrive className="w-3.5 h-3.5" />
@@ -1285,8 +1330,8 @@ export default function App() {
 
         {/* Empty state */}
         {filteredShortcuts.length === 0 && (viewMode !== 'orbit' || searchQuery.trim().length > 0) ? (
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-12 text-center shadow-xs">
-            <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 flex items-center justify-center mx-auto mb-3">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-12 text-center shadow-xs clay-surface">
+            <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 flex items-center justify-center mx-auto mb-3 clay-icon-well">
               <Search className="w-6 h-6" />
             </div>
             <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
@@ -1379,12 +1424,12 @@ export default function App() {
                 return (
                   <section
                     key={group.id}
-                    className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs transition-colors"
+                    className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors"
                   >
                     {/* Group Header */}
                     <div className="flex items-center justify-between pb-3 mb-4 border-b border-neutral-100 dark:border-neutral-800">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0 clay-icon-well">
                           {isImageIcon(group.icon) ? (
                             <img src={group.icon} alt={group.name} className="w-full h-full object-cover" />
                           ) : (
@@ -1466,7 +1511,7 @@ export default function App() {
           </div>
         ) : viewMode === 'list' ? (
           /* View Mode: High-density List Table */
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-xs clay-surface">
             <div className="px-4 py-3 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-semibold text-neutral-600 dark:text-neutral-400">
               <div className="flex-1 min-w-[240px]">Nama Layanan & Kategori</div>
               <div className="hidden md:block flex-1 min-w-[200px]">URL / Alamat Direktori</div>
@@ -1525,7 +1570,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 py-4 transition-colors">
+      <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 py-4 clay-footer transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-neutral-700 dark:text-neutral-300">OneStop Hub Engineering</span>
@@ -1665,6 +1710,8 @@ export default function App() {
         }}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        uiStyle={uiStyle}
+        onUiStyleChange={handleUiStyleChange}
         currentRole={currentRole}
         onOpenRoleSwitch={() => setIsRoleSwitchOpen(true)}
         totalShortcutsCount={shortcuts.length}

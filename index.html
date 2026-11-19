@@ -22,6 +22,8 @@
           } else {
             document.documentElement.classList.remove('dark');
           }
+          var savedUiStyle = localStorage.getItem('onestop_hub_ui_style_v1');
+          document.documentElement.dataset.uiStyle = savedUiStyle === 'classic' ? 'classic' : 'clay';
         } catch (e) {}
       })();
     </script>

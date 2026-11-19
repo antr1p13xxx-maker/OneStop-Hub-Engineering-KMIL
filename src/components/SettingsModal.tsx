@@ -31,7 +31,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
-import { CardDensity, ViewMode, UserRole, CustomLogoConfig, LogoFitMode } from '../types';
+import { CardDensity, ViewMode, UserRole, CustomLogoConfig, LogoFitMode, UiStyle } from '../types';
 import { ROLE_CONFIGS } from '../services/auth';
 import { processLogoImageFile } from '../utils/imageHelper';
 import {
@@ -51,6 +51,8 @@ interface SettingsModalProps {
   onViewModeChange: (mode: ViewMode) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  uiStyle?: UiStyle;
+  onUiStyleChange?: (style: UiStyle) => void;
   currentRole: UserRole;
   onOpenRoleSwitch: () => void;
   totalShortcutsCount: number;
@@ -79,6 +81,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onViewModeChange,
   theme,
   onToggleTheme,
+  uiStyle = 'claymorphism',
+  onUiStyleChange,
   currentRole,
   onOpenRoleSwitch,
   totalShortcutsCount,
@@ -241,7 +245,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl transition-colors"
+        className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl clay-modal transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -298,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-850/60 space-y-4">
+            <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-850/60 space-y-4 clay-subcard">
               {/* Live Header Preview & Upload Button */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 {/* Preview Badge */}
@@ -780,6 +784,94 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div className="border-t border-neutral-100 dark:border-neutral-800" />
 
+          {/* SECTION 3.5: Gaya Desain Antarmuka (Claymorphism vs Klasik) */}
+          {onUiStyleChange && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>Gaya Desain Antarmuka (UI Style)</span>
+                    </h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                      Pilih tampilan Claymorphism 3D lembut yang taktil atau Klasik Minimalis yang ringkas.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    {uiStyle === 'claymorphism' ? 'Claymorphism 3D' : 'Klasik Minimalis'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onUiStyleChange('claymorphism')}
+                    className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 cursor-pointer ${
+                      uiStyle === 'claymorphism'
+                        ? 'border-indigo-600 dark:border-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/35 ring-1 ring-indigo-600 dark:ring-indigo-400 clay-subcard'
+                        : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-850/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
+                        Claymorphism 3D
+                      </span>
+                      {uiStyle === 'claymorphism' && (
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                          <Check className="w-3 h-3 stroke-[2.5]" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5 rounded-2xl bg-[#eef3fc] dark:bg-[#141928] flex items-center gap-2.5 shadow-[inset_3px_3px_6px_rgba(163,177,198,0.35),inset_-2px_-2px_5px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_7px_rgba(4,7,15,0.7)]">
+                      <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-[4px_5px_10px_rgba(79,70,229,0.35),inset_2px_2px_4px_rgba(255,255,255,0.45)] shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-2 rounded-full bg-white dark:bg-[#1e253b] shadow-[3px_3px_6px_rgba(163,177,198,0.35)] w-3/4" />
+                        <div className="h-1.5 rounded-full bg-indigo-200/80 dark:bg-indigo-900/60 w-1/2" />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                      Sudut membulat empuk, kedalaman 3D lembut, dan sorotan cahaya di setiap kartu & tombol.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onUiStyleChange('classic')}
+                    className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between gap-3 cursor-pointer ${
+                      uiStyle === 'classic'
+                        ? 'border-indigo-600 dark:border-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/35 ring-1 ring-indigo-600 dark:ring-indigo-400'
+                        : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-850/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
+                        Klasik Minimalis
+                      </span>
+                      {uiStyle === 'classic' && (
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                          <Check className="w-3 h-3 stroke-[2.5]" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md bg-indigo-600 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-2 rounded bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 w-3/4" />
+                        <div className="h-1.5 rounded bg-neutral-300 dark:bg-neutral-600 w-1/2" />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                      Permukaan datar bersih dengan garis tepi 1px tajam untuk kepadatan informasi maksimal.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-neutral-100 dark:border-neutral-800" />
+            </>
+          )}
+
           {/* SECTION 4: Database Google Firebase Console */}
           <div ref={firebaseSectionRef}>
             <div className="flex items-center justify-between mb-3">
@@ -905,7 +997,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors clay-btn-primary"
           >
             Selesai & Simpan
           </button>

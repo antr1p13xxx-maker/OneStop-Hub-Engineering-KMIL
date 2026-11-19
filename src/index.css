@@ -101,3 +101,302 @@
   animation: jarvis-radar-sweep 4s linear infinite;
 }
 
+/* ============================================================================
+   Claymorphism UI Theme Tokens & Sculpted Surfaces (Light & Dark Modes)
+   Activated cleanly via html[data-ui-style="clay"]
+   ============================================================================ */
+:root[data-ui-style="clay"] {
+  --clay-canvas: linear-gradient(155deg, #eef3fc 0%, #e4ecf8 55%, #dde6f5 100%);
+  --clay-header-bg: rgba(242, 246, 253, 0.86);
+  --clay-surface: #f5f8fe;
+  --clay-surface-soft: #ebf1fb;
+  --clay-inset-bg: #e2eaf6;
+  --clay-border: rgba(255, 255, 255, 0.88);
+  --clay-border-subtle: rgba(199, 212, 232, 0.65);
+
+  --clay-shadow-header:
+    0 10px 26px -10px rgba(143, 161, 191, 0.35),
+    inset 0 -2px 4px rgba(173, 189, 214, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.92);
+
+  --clay-shadow-surface:
+    12px 14px 28px rgba(154, 171, 198, 0.38),
+    -8px -8px 20px rgba(255, 255, 255, 0.88),
+    inset 3px 3px 7px rgba(255, 255, 255, 0.95),
+    inset -5px -5px 12px rgba(175, 191, 217, 0.32);
+
+  --clay-shadow-card:
+    8px 10px 22px rgba(154, 171, 198, 0.36),
+    -6px -6px 16px rgba(255, 255, 255, 0.86),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.94),
+    inset -4px -4px 10px rgba(175, 191, 217, 0.3);
+
+  --clay-shadow-card-hover:
+    12px 16px 30px rgba(145, 163, 194, 0.44),
+    -7px -7px 18px rgba(255, 255, 255, 0.92),
+    inset 3px 3px 7px rgba(255, 255, 255, 0.96),
+    inset -5px -5px 12px rgba(168, 185, 214, 0.36);
+
+  --clay-shadow-subcard:
+    5px 6px 14px rgba(156, 173, 200, 0.32),
+    -4px -4px 12px rgba(255, 255, 255, 0.85),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -3px -3px 7px rgba(176, 192, 217, 0.28);
+
+  --clay-shadow-inset:
+    inset 4px 4px 8px rgba(158, 175, 204, 0.38),
+    inset -3px -3px 7px rgba(255, 255, 255, 0.9);
+
+  --clay-shadow-icon:
+    4px 5px 11px rgba(150, 168, 198, 0.35),
+    -3px -3px 8px rgba(255, 255, 255, 0.88),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.95),
+    inset -2px -2px 5px rgba(172, 188, 214, 0.34);
+
+  --clay-shadow-btn-primary:
+    6px 8px 18px rgba(79, 70, 229, 0.34),
+    -2px -2px 8px rgba(255, 255, 255, 0.72),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.42),
+    inset -3px -3px 7px rgba(49, 46, 129, 0.35);
+
+  --clay-shadow-btn-emerald:
+    5px 7px 16px rgba(5, 150, 105, 0.28),
+    -2px -2px 6px rgba(255, 255, 255, 0.75),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.45),
+    inset -3px -3px 6px rgba(6, 78, 59, 0.28);
+
+  --clay-shadow-btn-soft:
+    4px 5px 12px rgba(154, 171, 198, 0.3),
+    -3px -3px 8px rgba(255, 255, 255, 0.85),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.92),
+    inset -2px -2px 5px rgba(173, 189, 214, 0.28);
+
+  --clay-shadow-modal:
+    18px 22px 44px rgba(46, 59, 89, 0.28),
+    -6px -6px 18px rgba(255, 255, 255, 0.45),
+    inset 3px 3px 8px rgba(255, 255, 255, 0.95),
+    inset -6px -6px 14px rgba(173, 189, 214, 0.34);
+}
+
+:root.dark[data-ui-style="clay"] {
+  --clay-canvas: linear-gradient(155deg, #141928 0%, #101421 55%, #0c101b 100%);
+  --clay-header-bg: rgba(25, 31, 49, 0.88);
+  --clay-surface: #1d2438;
+  --clay-surface-soft: #171d2f;
+  --clay-inset-bg: #121726;
+  --clay-border: rgba(255, 255, 255, 0.085);
+  --clay-border-subtle: rgba(148, 163, 184, 0.14);
+
+  --clay-shadow-header:
+    0 12px 28px -10px rgba(4, 7, 15, 0.7),
+    inset 0 -2px 5px rgba(5, 8, 18, 0.55),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06);
+
+  --clay-shadow-surface:
+    12px 14px 30px rgba(4, 6, 14, 0.72),
+    -6px -6px 18px rgba(46, 58, 92, 0.18),
+    inset 2px 2px 6px rgba(255, 255, 255, 0.08),
+    inset -5px -5px 12px rgba(6, 9, 19, 0.62);
+
+  --clay-shadow-card:
+    8px 11px 22px rgba(4, 6, 14, 0.68),
+    -5px -5px 14px rgba(46, 58, 92, 0.17),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.085),
+    inset -4px -4px 10px rgba(6, 9, 19, 0.6);
+
+  --clay-shadow-card-hover:
+    12px 16px 28px rgba(3, 5, 12, 0.78),
+    -6px -6px 16px rgba(58, 73, 114, 0.22),
+    inset 2px 2px 6px rgba(255, 255, 255, 0.12),
+    inset -5px -5px 12px rgba(6, 9, 19, 0.66);
+
+  --clay-shadow-subcard:
+    5px 7px 15px rgba(4, 6, 14, 0.62),
+    -3px -3px 10px rgba(46, 58, 92, 0.16),
+    inset 1.5px 1.5px 4px rgba(255, 255, 255, 0.075),
+    inset -3px -3px 7px rgba(6, 9, 19, 0.58);
+
+  --clay-shadow-inset:
+    inset 4px 4px 9px rgba(4, 7, 15, 0.76),
+    inset -2px -2px 6px rgba(56, 70, 108, 0.18);
+
+  --clay-shadow-icon:
+    4px 6px 12px rgba(4, 6, 14, 0.65),
+    -2px -2px 7px rgba(48, 60, 94, 0.18),
+    inset 1.5px 1.5px 4px rgba(255, 255, 255, 0.09),
+    inset -2px -2px 5px rgba(6, 9, 19, 0.62);
+
+  --clay-shadow-btn-primary:
+    6px 9px 20px rgba(4, 6, 18, 0.68),
+    0 4px 14px rgba(79, 70, 229, 0.34),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.3),
+    inset -3px -3px 7px rgba(30, 27, 75, 0.45);
+
+  --clay-shadow-btn-emerald:
+    5px 8px 18px rgba(4, 6, 18, 0.65),
+    0 4px 14px rgba(16, 185, 129, 0.25),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.28),
+    inset -3px -3px 7px rgba(6, 78, 59, 0.45);
+
+  --clay-shadow-btn-soft:
+    4px 5px 12px rgba(4, 6, 14, 0.58),
+    -2px -2px 7px rgba(48, 60, 94, 0.15),
+    inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.075),
+    inset -2px -2px 5px rgba(6, 9, 19, 0.55);
+
+  --clay-shadow-modal:
+    18px 24px 48px rgba(2, 4, 10, 0.84),
+    -6px -6px 18px rgba(48, 60, 94, 0.14),
+    inset 2px 2px 6px rgba(255, 255, 255, 0.09),
+    inset -6px -6px 14px rgba(5, 8, 18, 0.68);
+}
+
+@layer components {
+  [data-ui-style="clay"] .clay-canvas {
+    background: var(--clay-canvas);
+  }
+
+  [data-ui-style="clay"] .clay-header {
+    background: var(--clay-header-bg);
+    border-bottom-color: var(--clay-border-subtle);
+    box-shadow: var(--clay-shadow-header);
+  }
+
+  [data-ui-style="clay"] .clay-surface {
+    background: var(--clay-surface);
+    border-color: var(--clay-border);
+    border-width: 1.5px;
+    border-radius: 1.5rem;
+    box-shadow: var(--clay-shadow-surface);
+  }
+
+  [data-ui-style="clay"] .clay-card {
+    background: var(--clay-surface);
+    border-color: var(--clay-border);
+    border-width: 1.5px;
+    border-radius: 1.375rem;
+    box-shadow: var(--clay-shadow-card);
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 180ms ease;
+  }
+
+  [data-ui-style="clay"] .clay-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--clay-shadow-card-hover);
+  }
+
+  [data-ui-style="clay"] .clay-card:active {
+    transform: translateY(0) scale(0.988);
+  }
+
+  [data-ui-style="clay"] .clay-subcard {
+    background: var(--clay-surface-soft);
+    border-color: var(--clay-border);
+    border-width: 1px;
+    border-radius: 1.125rem;
+    box-shadow: var(--clay-shadow-subcard);
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  [data-ui-style="clay"] .clay-subcard-hover:hover {
+    transform: translateY(-1.5px);
+    box-shadow: var(--clay-shadow-card);
+  }
+
+  [data-ui-style="clay"] .clay-inset {
+    background: var(--clay-inset-bg);
+    border-color: var(--clay-border-subtle);
+    border-radius: 0.95rem;
+    box-shadow: var(--clay-shadow-inset);
+  }
+
+  [data-ui-style="clay"] .clay-icon-well {
+    border-radius: 0.9rem;
+    border-color: var(--clay-border);
+    box-shadow: var(--clay-shadow-icon);
+  }
+
+  [data-ui-style="clay"] .clay-btn-primary {
+    background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.28);
+    border-radius: 0.95rem;
+    box-shadow: var(--clay-shadow-btn-primary);
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
+                filter 160ms ease;
+  }
+
+  [data-ui-style="clay"] .clay-btn-primary:hover {
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+  }
+
+  [data-ui-style="clay"] .clay-btn-primary:active {
+    transform: translateY(0) scale(0.975);
+  }
+
+  [data-ui-style="clay"] .clay-btn-emerald {
+    background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.3);
+    border-radius: 0.95rem;
+    box-shadow: var(--clay-shadow-btn-emerald);
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+                filter 160ms ease;
+  }
+
+  [data-ui-style="clay"] .clay-btn-emerald:hover {
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+  }
+
+  [data-ui-style="clay"] .clay-btn-soft {
+    background: var(--clay-surface);
+    border-color: var(--clay-border);
+    border-radius: 0.9rem;
+    box-shadow: var(--clay-shadow-btn-soft);
+    transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  [data-ui-style="clay"] .clay-btn-soft:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--clay-shadow-subcard);
+  }
+
+  [data-ui-style="clay"] .clay-btn-soft:active {
+    transform: translateY(0) scale(0.975);
+  }
+
+  [data-ui-style="clay"] .clay-modal {
+    background: var(--clay-surface);
+    border-color: var(--clay-border);
+    border-width: 1.5px;
+    border-radius: 1.75rem;
+    box-shadow: var(--clay-shadow-modal);
+  }
+
+  [data-ui-style="clay"] .clay-footer {
+    background: var(--clay-surface-soft);
+    border-top-color: var(--clay-border-subtle);
+    box-shadow: 0 -6px 20px rgba(154, 171, 198, 0.16);
+  }
+
+  :root.dark[data-ui-style="clay"] .clay-footer {
+    box-shadow: 0 -8px 24px rgba(4, 6, 14, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui-style="clay"] .clay-card,
+  [data-ui-style="clay"] .clay-subcard,
+  [data-ui-style="clay"] .clay-btn-primary,
+  [data-ui-style="clay"] .clay-btn-emerald,
+  [data-ui-style="clay"] .clay-btn-soft {
+    transition: none;
+    transform: none !important;
+  }
+}

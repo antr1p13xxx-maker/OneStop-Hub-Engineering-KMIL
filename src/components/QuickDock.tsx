@@ -27,7 +27,7 @@ export const QuickDock: React.FC<QuickDockProps> = ({
   };
 
   return (
-    <section className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs transition-colors">
+    <section className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors">
       <div className="flex items-center justify-between mb-3 text-xs text-neutral-500 dark:text-neutral-400">
         <div className="flex items-center gap-2 font-medium text-neutral-800 dark:text-neutral-200">
           <Pin className="w-3.5 h-3.5 text-indigo-500" />
@@ -53,14 +53,14 @@ export const QuickDock: React.FC<QuickDockProps> = ({
           return (
             <div
               key={item.id}
-              className="group relative flex items-center gap-2.5 p-2.5 rounded-lg border border-neutral-200/70 dark:border-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 bg-neutral-50/60 dark:bg-neutral-800/40 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/80 transition-all text-left"
+              className="group relative flex items-center gap-2.5 p-2.5 rounded-lg border border-neutral-200/70 dark:border-neutral-800/80 hover:border-neutral-300 dark:hover:border-neutral-700 bg-neutral-50/60 dark:bg-neutral-800/40 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/80 transition-all text-left clay-subcard clay-subcard-hover"
             >
               <button
                 type="button"
                 onClick={() => onLaunch(item)}
                 className="flex items-center gap-2.5 min-w-0 flex-1 focus:outline-none"
               >
-                <div className="w-8 h-8 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                <div className="w-8 h-8 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs clay-icon-well">
                   {hasCustomPhoto ? (
                     <img
                       src={item.iconValue}

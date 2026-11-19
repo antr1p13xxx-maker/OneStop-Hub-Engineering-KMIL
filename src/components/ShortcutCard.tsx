@@ -116,7 +116,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
   return (
     <div
       onClick={() => onLaunch(shortcut)}
-      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 ${containerPadding} transition-all duration-150 cursor-pointer shadow-xs hover:shadow-sm flex flex-col justify-between`}
+      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 ${containerPadding} transition-all duration-150 cursor-pointer shadow-xs hover:shadow-sm clay-card flex flex-col justify-between`}
     >
       <div>
         {/* Top unboxed metadata line */}
@@ -150,7 +150,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200 animate-in fade-in zoom-in-95 duration-100 clay-modal">
                   {canEditShortcut && (
                     <button
                       onClick={() => {
@@ -235,7 +235,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
               : density === 'large'
               ? 'w-12 h-12 rounded-xl'
               : 'w-10 h-10 rounded-lg'
-          } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors`}>
+          } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors clay-icon-well`}>
             {hasCustomPhoto ? (
               <img
                 src={shortcut.iconValue}
@@ -308,7 +308,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
             type="button"
             onClick={handleCopyPath}
             title="Salin alamat"
-            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors ${
+            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors clay-btn-soft ${
               density === 'small' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'
             }`}
           >
@@ -328,7 +328,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
           <button
             type="button"
             onClick={() => onLaunch(shortcut)}
-            className={`inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors ${
+            className={`inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft ${
               density === 'small' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
             }`}
           >

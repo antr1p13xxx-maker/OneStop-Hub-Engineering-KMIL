@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
   const hasValidLogo = Boolean(customLogo?.src && !logoImgError);
 
   return (
-    <header className="sticky top-0 z-30 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-colors">
+    <header className="sticky top-0 z-30 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 clay-header transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-8 h-16">
           {/* Zone 1: Single text wordmark + customizable logo photo */}
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
                   title="OneStop Hub Engineering"
                 >
                   {hasValidLogo ? (
-                    <div className="w-9 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex items-center justify-center shadow-xs">
+                    <div className="w-9 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 overflow-hidden flex items-center justify-center shadow-xs clay-icon-well">
                       <img
                         src={customLogo!.src}
                         alt="OneStop Hub Engineering"
@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs clay-btn-primary">
                       <Layers className="w-5 h-5" />
                     </div>
                   )}
@@ -197,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenRoleSwitch}
               title={`Peran saat ini: ${roleConfig.name}. Klik untuk beralih peran.`}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:shadow-2xs ${roleConfig.badgeColor}`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:shadow-2xs clay-btn-soft ${roleConfig.badgeColor}`}
             >
               {currentRole === 'viewer' ? (
                 <Eye className="w-3.5 h-3.5 text-neutral-500" />
@@ -216,7 +216,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenCloudSettings || onOpenSettings}
                 title={`Tersinkron ke Firebase Cloud (${firebaseUser.email || 'Google'})`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors clay-btn-soft"
               >
                 <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="hidden lg:inline max-w-[110px] truncate">
@@ -229,7 +229,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onSignInGoogle}
                 disabled={isSigningInGoogle}
                 title="Masuk dengan Google untuk menyimpan database di Google Firebase Firestore"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-60 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-60 transition-colors clay-btn-soft"
               >
                 <CloudOff className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                 <span className="hidden lg:inline">
@@ -255,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onOpenSettings}
               aria-label="Buka Pengaturan Tampilan & Densitas"
               title="Pengaturan Tampilan & Densitas Kartu (Small/Medium/Large)"
-              className="p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              className="p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors clay-btn-soft"
             >
               <Sliders className="w-4 h-4" />
             </button>
@@ -270,7 +270,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'Mode Gelap aktif (Transisi halus). Klik untuk beralih ke Mode Terang.'
                   : 'Mode Terang aktif (Transisi halus). Klik untuk beralih ke Mode Gelap.'
               }
-              className="p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              className="p-2 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors clay-btn-soft"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
@@ -280,7 +280,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenAddModal}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-xs transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-xs transition-colors whitespace-nowrap shrink-0 clay-btn-primary"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Tambah Pintasan</span>
@@ -291,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenRoleSwitch}
                 title="Viewer hanya bisa melihat. Klik untuk beralih ke Lead/Manager."
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-700 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg border border-neutral-200 dark:border-neutral-700 transition-colors whitespace-nowrap shrink-0 clay-btn-soft"
               >
                 <Lock className="w-3.5 h-3.5 text-neutral-400" />
                 <span>Mode Lihat</span>
