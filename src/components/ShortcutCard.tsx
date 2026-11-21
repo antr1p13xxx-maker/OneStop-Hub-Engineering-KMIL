@@ -16,6 +16,7 @@ import {
 import { ShortcutItem, ShortcutGroup, CardDensity } from '../types';
 import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard, getWindowsExplorerCommand } from '../utils/pathHelper';
+import { getGroupColorTheme } from '../utils/colorTheme';
 
 interface ShortcutCardProps {
   shortcut: ShortcutItem;
@@ -91,17 +92,9 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
   const hasCustomPhoto = shortcut.iconType === 'custom' && isImageIcon(shortcut.iconValue) && !customPhotoError;
   const favicon = shortcut.iconType === 'favicon' && !faviconError ? getFaviconUrl(shortcut.url) : null;
 
-  // Group color accents
-  const groupBadgeClass = {
-    blue: 'text-blue-700 dark:text-blue-300',
-    emerald: 'text-emerald-700 dark:text-emerald-300',
-    rose: 'text-rose-700 dark:text-rose-300',
-    purple: 'text-purple-700 dark:text-purple-300',
-    indigo: 'text-indigo-700 dark:text-indigo-300',
-    amber: 'text-amber-700 dark:text-amber-300',
-    cyan: 'text-cyan-700 dark:text-cyan-300',
-    slate: 'text-neutral-700 dark:text-neutral-300',
-  }[group?.color || 'slate'];
+  // Group color theme
+  const colorTheme = getGroupColorTheme(group?.color);
+  const groupBadgeClass = colorTheme.text;
 
   // Density classes
   const containerPadding = {
@@ -124,7 +117,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
       whileHover={shouldReduceMotion ? undefined : { y: -4, scale: 1.012 }}
       whileTap={shouldReduceMotion ? undefined : { y: -1, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
-      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 ${containerPadding} transition-[box-shadow,border-color,background-color] duration-200 cursor-pointer shadow-xs hover:shadow-md clay-card flex flex-col justify-between`}
+      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 ${colorTheme.cardHoverBorder} ${containerPadding} transition-[box-shadow,border-color,background-color] duration-200 cursor-pointer shadow-xs hover:shadow-md clay-card flex flex-col justify-between`}
     >
       <div>
         {/* Top unboxed metadata line */}
@@ -258,7 +251,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                 : density === 'large'
                 ? 'w-12 h-12 rounded-xl'
                 : 'w-10 h-10 rounded-lg'
-            } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors clay-icon-well`}
+            } border flex items-center justify-center shrink-0 overflow-hidden shadow-2xs transition-colors clay-icon-well ${colorTheme.iconBg}`}
           >
             {hasCustomPhoto ? (
               <img
@@ -280,7 +273,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
             ) : (
               <DynamicIcon
                 name={isImageIcon(shortcut.iconValue) ? 'Globe' : shortcut.iconValue || 'Globe'}
-                className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} text-indigo-600 dark:text-indigo-400`}
+                className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} ${colorTheme.iconText}`}
               />
             )}
           </motion.div>
@@ -358,7 +351,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
             whileHover={shouldReduceMotion ? undefined : { scale: 1.04, y: -1 }}
             whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-            className={`inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft clay-motion-btn ${
+            className={`inline-flex items-center gap-1 rounded font-semibold transition-colors clay-btn-soft clay-motion-btn ${colorTheme.openBtn} ${
               density === 'small' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
             }`}
           >

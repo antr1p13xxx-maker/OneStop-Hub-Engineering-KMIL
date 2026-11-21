@@ -91,6 +91,7 @@ import {
   WorkspacePreferencesPayload,
 } from './services/firestoreSync';
 import { launchShortcut, copyToClipboard } from './utils/pathHelper';
+import { getGroupColorTheme } from './utils/colorTheme';
 import { Header } from './components/Header';
 import { DirectoryInfoBanner } from './components/DirectoryInfoBanner';
 import { QuickDock } from './components/QuickDock';
@@ -1006,16 +1007,16 @@ export default function App() {
         )}
         {/* Role Notification Banner for Viewer or Lead */}
         {currentRole === 'viewer' && (
-          <div className="bg-neutral-100 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-700/80 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
-            <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
-              <Eye className="w-4 h-4 text-neutral-500 shrink-0" />
+          <div className="bg-gradient-to-r from-sky-50/90 via-indigo-50/75 to-violet-50/85 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/80 dark:border-indigo-800/50 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+              <Eye className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
               <span>
                 <strong>Akses Viewer (Hanya Lihat):</strong> Anda dapat mencari, membuka pintasan, dan menyalin path folder. Tidak dapat menambah atau menghapus data.
               </span>
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-2.5 py-1 text-xs font-semibold bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg shrink-0 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors clay-btn-soft"
+              className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg shrink-0 transition-all shadow-xs clay-btn-primary"
             >
               Masuk (Lead/Manager)
             </button>
@@ -1023,7 +1024,7 @@ export default function App() {
         )}
 
         {currentRole === 'lead' && (
-          <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
+          <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-rose-50/60 dark:from-amber-950/35 dark:via-orange-950/25 dark:to-rose-950/20 border border-amber-200/90 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
             <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
               <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>
@@ -1032,7 +1033,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors clay-btn-soft"
+              className="px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-100/90 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors clay-btn-soft"
             >
               Ganti Peran
             </button>
@@ -1041,9 +1042,9 @@ export default function App() {
 
         {/* Toast Notification Bar */}
         {toast && (
-          <div className="bg-indigo-600 text-white p-3 sm:p-4 rounded-xl shadow-lg flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white p-3 sm:p-4 rounded-xl shadow-[0_10px_28px_rgba(99,102,241,0.3)] flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-200" />
               <div>
                 <p className="text-sm font-semibold">{toast.message}</p>
                 {toast.details && (
@@ -1053,7 +1054,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setToast(null)}
-              className="p-1 text-indigo-200 hover:text-white rounded"
+              className="p-1 text-white/80 hover:text-white rounded"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1172,7 +1173,7 @@ export default function App() {
                   title="Tampilan Grid Kartu"
                   className={`p-1.5 rounded-md transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow-2xs'
+                      ? 'bg-white dark:bg-neutral-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
                       : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200'
                   }`}
                 >
@@ -1205,7 +1206,7 @@ export default function App() {
                   title="Tampilan Berdasarkan Kategori Grup"
                   className={`p-1.5 rounded-md transition-colors ${
                     viewMode === 'sections'
-                      ? 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow-2xs'
+                      ? 'bg-white dark:bg-neutral-900 text-violet-600 dark:text-violet-400 shadow-2xs'
                       : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200'
                   }`}
                 >
@@ -1222,7 +1223,7 @@ export default function App() {
                   title="Tampilan Daftar Tabel Rapat"
                   className={`p-1.5 rounded-md transition-colors ${
                     viewMode === 'list'
-                      ? 'bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 shadow-2xs'
+                      ? 'bg-white dark:bg-neutral-900 text-cyan-600 dark:text-cyan-400 shadow-2xs'
                       : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200'
                   }`}
                 >
@@ -1241,11 +1242,11 @@ export default function App() {
                 }
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
                   uiStyle === 'claymorphism'
-                    ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 clay-btn-soft'
+                    ? 'border-fuchsia-300/80 dark:border-fuchsia-700/70 bg-gradient-to-r from-indigo-50 via-violet-50 to-fuchsia-50 dark:from-indigo-950/60 dark:via-violet-950/50 dark:to-fuchsia-950/50 text-violet-700 dark:text-fuchsia-300 clay-btn-soft'
                     : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className={`w-3.5 h-3.5 ${uiStyle === 'claymorphism' ? 'text-fuchsia-500 dark:text-fuchsia-400' : 'text-indigo-500 dark:text-indigo-400'}`} />
                 <span className="hidden sm:inline">{uiStyle === 'claymorphism' ? 'Clay 3D' : 'Klasik'}</span>
               </button>
 
@@ -1254,7 +1255,7 @@ export default function App() {
                 type="button"
                 onClick={() => setIsSettingsOpen(true)}
                 title="Buka Pengaturan Tampilan & Densitas"
-                className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors clay-btn-soft"
+                className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors clay-btn-soft"
               >
                 <Sliders className="w-4 h-4" />
               </button>
@@ -1266,10 +1267,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleSelectGroupFilter('all')}
-              className={`px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-all ${
                 selectedGroupFilter === 'all'
-                  ? 'bg-indigo-600 text-white shadow-xs clay-btn-primary'
-                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
+                  ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-[0_6px_16px_rgba(99,102,241,0.34)] clay-btn-primary'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
               }`}
             >
               Semua Grup ({shortcuts.length})
@@ -1277,20 +1278,25 @@ export default function App() {
 
             {groups.map((group) => {
               const count = shortcuts.filter((s) => s.groupId === group.id).length;
+              const isSelected = selectedGroupFilter === group.id;
+              const colorTheme = getGroupColorTheme(group.color);
               return (
                 <button
                   key={group.id}
                   type="button"
                   onClick={() => handleSelectGroupFilter(group.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
-                    selectedGroupFilter === group.id
-                      ? 'bg-amber-500 text-neutral-950 font-semibold shadow-xs'
-                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-lg whitespace-nowrap transition-all ${
+                    isSelected
+                      ? `${colorTheme.activeTab} font-semibold`
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 clay-btn-soft'
                   }`}
                 >
-                  <DynamicIcon name={group.icon} className="w-3.5 h-3.5" />
+                  <DynamicIcon
+                    name={group.icon}
+                    className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : colorTheme.inactiveTabIcon}`}
+                  />
                   <span>{group.name}</span>
-                  <span className="tabular-nums font-mono opacity-80">({count})</span>
+                  <span className="tabular-nums font-mono opacity-85">({count})</span>
                 </button>
               );
             })}
@@ -1302,9 +1308,9 @@ export default function App() {
                 setIsManageGroupsOpen(true);
               }}
               title="Tambah, Edit, atau Hapus Grup"
-              className="flex items-center gap-1 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-dashed border-neutral-300 dark:border-neutral-700 transition-colors shrink-0 clay-btn-soft"
+              className="flex items-center gap-1 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-violet-50 dark:hover:bg-violet-950/50 hover:text-violet-700 dark:hover:text-violet-300 border border-dashed border-violet-300/80 dark:border-violet-700/60 transition-colors shrink-0 clay-btn-soft"
             >
-              <Settings2 className="w-3.5 h-3.5" />
+              <Settings2 className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
               <span>Kelola Grup</span>
             </button>
 
@@ -1316,11 +1322,11 @@ export default function App() {
               onClick={() => setSelectedTypeFilter(selectedTypeFilter === 'directory' ? 'all' : 'directory')}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 font-medium rounded-lg whitespace-nowrap transition-colors ${
                 selectedTypeFilter === 'directory'
-                  ? 'bg-emerald-600 text-white clay-btn-emerald'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 clay-btn-soft'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white clay-btn-emerald'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 clay-btn-soft'
               }`}
             >
-              <HardDrive className="w-3.5 h-3.5" />
+              <HardDrive className={`w-3.5 h-3.5 ${selectedTypeFilter === 'directory' ? 'text-white' : 'text-emerald-500 dark:text-emerald-400'}`} />
               <span>Hanya Drive Lokal ({stats.directoryCount})</span>
             </button>
           </div>
@@ -1331,7 +1337,7 @@ export default function App() {
         {/* Empty state */}
         {filteredShortcuts.length === 0 && (viewMode !== 'orbit' || searchQuery.trim().length > 0) ? (
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-12 text-center shadow-xs clay-surface">
-            <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 flex items-center justify-center mx-auto mb-3 clay-icon-well">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 via-violet-100 to-fuchsia-100 dark:from-indigo-900/50 dark:via-violet-900/50 dark:to-fuchsia-900/40 text-indigo-600 dark:text-indigo-300 flex items-center justify-center mx-auto mb-3 clay-icon-well">
               <Search className="w-6 h-6" />
             </div>
             <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
@@ -1360,7 +1366,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleOpenAddWithGroup(selectedGroupFilter !== 'all' ? selectedGroupFilter : undefined)}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:via-violet-500 hover:to-fuchsia-500 text-white shadow-xs clay-btn-primary"
                 >
                   + Tambah Pintasan Baru
                 </button>
@@ -1368,7 +1374,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsRoleSwitchOpen(true)}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 shadow-xs"
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs clay-btn-primary"
                 >
                   Masuk untuk Menambah Pintasan
                 </button>
@@ -1420,6 +1426,7 @@ export default function App() {
                 if (groupItems.length === 0 && selectedGroupFilter === 'all' && searchQuery) {
                   return null;
                 }
+                const colorTheme = getGroupColorTheme(group.color);
 
                 return (
                   <section
@@ -1427,13 +1434,13 @@ export default function App() {
                     className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors"
                   >
                     {/* Group Header */}
-                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-neutral-100 dark:border-neutral-800">
+                    <div className={`flex items-center justify-between px-3 py-2.5 -mx-1 mb-4 rounded-xl border-b border-neutral-100 dark:border-neutral-800 ${colorTheme.sectionGlow}`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0 clay-icon-well">
+                        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 clay-icon-well ${isImageIcon(group.icon) ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : colorTheme.iconBg}`}>
                           {isImageIcon(group.icon) ? (
                             <img src={group.icon} alt={group.name} className="w-full h-full object-cover" />
                           ) : (
-                            <DynamicIcon name={group.icon} className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            <DynamicIcon name={group.icon} className={`w-4 h-4 ${colorTheme.iconText}`} />
                           )}
                         </div>
                         <div>
@@ -1441,7 +1448,7 @@ export default function App() {
                             <h2 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
                               {group.name}
                             </h2>
-                            <span className="text-xs text-neutral-400 tabular-nums font-mono">
+                            <span className={`text-xs tabular-nums font-mono font-medium ${colorTheme.text}`}>
                               · {groupItems.length} pintasan
                             </span>
                           </div>
@@ -1512,7 +1519,7 @@ export default function App() {
         ) : viewMode === 'list' ? (
           /* View Mode: High-density List Table */
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-xs clay-surface">
-            <div className="px-4 py-3 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+            <div className="px-4 py-3 bg-gradient-to-r from-indigo-50/75 via-sky-50/45 to-fuchsia-50/40 dark:from-indigo-950/35 dark:via-neutral-800/60 dark:to-fuchsia-950/25 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
               <div className="flex-1 min-w-[240px]">Nama Layanan & Kategori</div>
               <div className="hidden md:block flex-1 min-w-[200px]">URL / Alamat Direktori</div>
               <div className="hidden lg:block flex-1 min-w-[180px]">Deskripsi</div>
@@ -1570,10 +1577,12 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 py-4 clay-footer transition-colors">
+      <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 py-4 clay-footer transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-neutral-700 dark:text-neutral-300">OneStop Hub Engineering</span>
+            <span className="font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent">
+              OneStop Hub Engineering
+            </span>
             <span aria-hidden="true">·</span>
             <span className="tabular-nums font-mono">{stats.total} Total Pintasan</span>
             <span aria-hidden="true">·</span>

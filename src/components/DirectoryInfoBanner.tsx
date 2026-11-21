@@ -25,10 +25,10 @@ export const DirectoryInfoBanner: React.FC<DirectoryInfoBannerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors">
+    <div className="bg-gradient-to-r from-emerald-50/90 via-teal-50/75 to-cyan-50/85 dark:from-emerald-950/45 dark:via-teal-950/30 dark:to-cyan-950/35 border border-emerald-200/80 dark:border-emerald-800/50 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 clay-icon-well">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center shrink-0 mt-0.5 clay-icon-well shadow-xs">
             <HardDrive className="w-5 h-5" />
           </div>
           <div>
@@ -67,9 +67,9 @@ export const DirectoryInfoBanner: React.FC<DirectoryInfoBannerProps> = ({
       </div>
 
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-neutral-600 dark:text-neutral-400">
-          <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-700/50 clay-subcard">
-            <p className="font-semibold text-neutral-900 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
+        <div className="mt-4 pt-4 border-t border-emerald-200/60 dark:border-emerald-800/40 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-neutral-600 dark:text-neutral-300">
+          <div className="p-3 rounded-lg bg-gradient-to-br from-sky-50/90 to-indigo-50/70 dark:from-sky-950/40 dark:to-indigo-950/30 border border-sky-200/70 dark:border-sky-800/40 clay-subcard">
+            <p className="font-semibold text-sky-900 dark:text-sky-200 mb-1 flex items-center gap-1.5">
               <span>1. Format Alamat Drive</span>
             </p>
             <p className="mb-2">
@@ -77,31 +77,31 @@ export const DirectoryInfoBanner: React.FC<DirectoryInfoBannerProps> = ({
             </p>
             <button
               onClick={() => handleCopy('D:\\Proyek_Utama\\2026', 'd-path')}
-              className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400 hover:underline font-medium"
             >
               {copiedExample === 'd-path' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               <span>{copiedExample === 'd-path' ? 'Tersalin!' : 'Salin Contoh Alamat D:'}</span>
             </button>
           </div>
 
-          <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-700/50 clay-subcard">
-            <p className="font-semibold text-neutral-900 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
+          <div className="p-3 rounded-lg bg-gradient-to-br from-emerald-50/90 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-200/70 dark:border-emerald-800/40 clay-subcard">
+            <p className="font-semibold text-emerald-900 dark:text-emerald-200 mb-1 flex items-center gap-1.5">
               <span>2. Cara Buka 1 Detik di Windows</span>
             </p>
             <p className="mb-2">
-              Klik tombol pintasan untuk otomatis menyalin path, lalu tekan <kbd className="px-1 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-mono">Win + R</kbd> lalu paste & Enter.
+              Klik tombol pintasan untuk otomatis menyalin path, lalu tekan <kbd className="px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-mono">Win + R</kbd> lalu paste & Enter.
             </p>
             <button
               onClick={() => handleCopy('explorer "D:\\Proyek_Utama\\2026"', 'cmd')}
-              className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
             >
               <Terminal className="w-3 h-3" />
               <span>{copiedExample === 'cmd' ? 'Tersalin!' : 'Salin Sintaks Explorer'}</span>
             </button>
           </div>
 
-          <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-700/50 clay-subcard">
-            <p className="font-semibold text-neutral-900 dark:text-neutral-200 mb-1 flex items-center gap-1.5">
+          <div className="p-3 rounded-lg bg-gradient-to-br from-violet-50/90 to-fuchsia-50/70 dark:from-violet-950/40 dark:to-fuchsia-950/30 border border-violet-200/70 dark:border-violet-800/40 clay-subcard">
+            <p className="font-semibold text-violet-900 dark:text-violet-200 mb-1 flex items-center gap-1.5">
               <span>3. Integrasi Editor & App</span>
             </p>
             <p className="mb-2">

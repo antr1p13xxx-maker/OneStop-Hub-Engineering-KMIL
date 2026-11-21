@@ -106,13 +106,18 @@
    Activated cleanly via html[data-ui-style="clay"]
    ============================================================================ */
 :root[data-ui-style="clay"] {
-  --clay-canvas: linear-gradient(155deg, #eef3fc 0%, #e4ecf8 55%, #dde6f5 100%);
-  --clay-header-bg: rgba(242, 246, 253, 0.86);
-  --clay-surface: #f5f8fe;
-  --clay-surface-soft: #ebf1fb;
-  --clay-inset-bg: #e2eaf6;
-  --clay-border: rgba(255, 255, 255, 0.88);
-  --clay-border-subtle: rgba(199, 212, 232, 0.65);
+  --clay-canvas:
+    radial-gradient(at 8% 6%, rgba(165, 180, 252, 0.34) 0px, transparent 42%),
+    radial-gradient(at 92% 10%, rgba(110, 231, 183, 0.28) 0px, transparent 38%),
+    radial-gradient(at 82% 88%, rgba(251, 182, 206, 0.28) 0px, transparent 44%),
+    radial-gradient(at 14% 85%, rgba(125, 211, 252, 0.28) 0px, transparent 42%),
+    linear-gradient(155deg, #f3f6ff 0%, #eef2ff 50%, #f5f3ff 100%);
+  --clay-header-bg: rgba(250, 251, 255, 0.84);
+  --clay-surface: rgba(255, 255, 255, 0.92);
+  --clay-surface-soft: #f0f4ff;
+  --clay-inset-bg: #e6ecf8;
+  --clay-border: rgba(255, 255, 255, 0.92);
+  --clay-border-subtle: rgba(188, 202, 232, 0.6);
 
   --clay-shadow-header:
     0 10px 26px -10px rgba(143, 161, 191, 0.35),
@@ -179,13 +184,18 @@
 }
 
 :root.dark[data-ui-style="clay"] {
-  --clay-canvas: linear-gradient(155deg, #141928 0%, #101421 55%, #0c101b 100%);
-  --clay-header-bg: rgba(25, 31, 49, 0.88);
-  --clay-surface: #1d2438;
-  --clay-surface-soft: #171d2f;
-  --clay-inset-bg: #121726;
-  --clay-border: rgba(255, 255, 255, 0.085);
-  --clay-border-subtle: rgba(148, 163, 184, 0.14);
+  --clay-canvas:
+    radial-gradient(at 10% 8%, rgba(99, 102, 241, 0.22) 0px, transparent 44%),
+    radial-gradient(at 90% 12%, rgba(20, 184, 166, 0.16) 0px, transparent 40%),
+    radial-gradient(at 80% 86%, rgba(236, 72, 153, 0.14) 0px, transparent 44%),
+    radial-gradient(at 16% 84%, rgba(56, 189, 248, 0.15) 0px, transparent 42%),
+    linear-gradient(155deg, #101526 0%, #0d1221 55%, #090d18 100%);
+  --clay-header-bg: rgba(20, 26, 44, 0.84);
+  --clay-surface: rgba(28, 35, 56, 0.92);
+  --clay-surface-soft: #171e32;
+  --clay-inset-bg: #111626;
+  --clay-border: rgba(255, 255, 255, 0.1);
+  --clay-border-subtle: rgba(148, 163, 184, 0.18);
 
   --clay-shadow-header:
     0 12px 28px -10px rgba(4, 7, 15, 0.7),
@@ -314,9 +324,9 @@
   }
 
   [data-ui-style="clay"] .clay-btn-primary {
-    background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 52%, #ec4899 100%);
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.34);
     border-radius: 0.95rem;
     box-shadow: var(--clay-shadow-btn-primary);
     transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -325,7 +335,7 @@
   }
 
   [data-ui-style="clay"] .clay-btn-primary:hover {
-    filter: brightness(1.04);
+    filter: brightness(1.06);
     transform: translateY(-1px);
   }
 
@@ -334,9 +344,9 @@
   }
 
   [data-ui-style="clay"] .clay-btn-emerald {
-    background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, #10b981 0%, #14b8a6 55%, #06b6d4 100%);
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.32);
     border-radius: 0.95rem;
     box-shadow: var(--clay-shadow-btn-emerald);
     transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -390,6 +400,21 @@
 
   :root.dark[data-ui-style="clay"] .clay-footer {
     box-shadow: 0 -8px 24px rgba(4, 6, 14, 0.45);
+  }
+
+  /* Classic mode subtle modern atmospheric gradient so classic mode also feels colorful & fresh */
+  [data-ui-style="classic"] .clay-canvas {
+    background-image:
+      radial-gradient(at 8% 6%, rgba(199, 210, 254, 0.28) 0px, transparent 42%),
+      radial-gradient(at 92% 10%, rgba(167, 243, 208, 0.24) 0px, transparent 38%),
+      radial-gradient(at 85% 90%, rgba(253, 164, 175, 0.2) 0px, transparent 44%);
+  }
+
+  :root.dark[data-ui-style="classic"] .clay-canvas {
+    background-image:
+      radial-gradient(at 8% 6%, rgba(99, 102, 241, 0.16) 0px, transparent 44%),
+      radial-gradient(at 92% 10%, rgba(16, 185, 129, 0.12) 0px, transparent 40%),
+      radial-gradient(at 85% 90%, rgba(236, 72, 153, 0.1) 0px, transparent 44%);
   }
 }
 

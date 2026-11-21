@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs clay-btn-primary">
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white flex items-center justify-center font-bold shadow-xs clay-btn-primary">
                       <Layers className="w-5 h-5" />
                     </div>
                   )}
@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onSelectGroupFilter('all')}
                 className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
               >
-                <span className="text-lg font-bold tracking-tight text-neutral-900 dark:text-neutral-100 whitespace-nowrap">
+                <span className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent whitespace-nowrap">
                   OneStop Hub Engineering
                 </span>
               </button>
@@ -151,41 +151,41 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => onSelectGroupFilter('group-drive')}
-              className={`flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors whitespace-nowrap shrink-0 ${
+              className={`flex items-center gap-1.5 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 ${
                 activeFilterGroup === 'group-drive'
                   ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
                   : ''
               }`}
             >
-              <FolderSearch className="w-4 h-4" />
+              <FolderSearch className="w-4 h-4 text-emerald-500" />
               Drive & Folder Lokal (D:)
             </button>
             <button
               onClick={onOpenManageGroups}
-              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 hover:text-violet-600 dark:hover:text-violet-400 transition-colors whitespace-nowrap shrink-0"
             >
-              <Settings2 className="w-4 h-4" />
+              <Settings2 className="w-4 h-4 text-violet-500" />
               Kelola Grup
             </button>
             <button
               onClick={onOpenHelpModal}
-              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap shrink-0"
             >
-              <HelpCircle className="w-4 h-4" />
+              <HelpCircle className="w-4 h-4 text-amber-500" />
               Panduan Direktori
             </button>
             <button
               onClick={onOpenSettings}
-              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors whitespace-nowrap shrink-0"
             >
-              <Sliders className="w-4 h-4" />
+              <Sliders className="w-4 h-4 text-cyan-500" />
               Pengaturan
             </button>
             <button
               onClick={onOpenBackupModal}
-              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors whitespace-nowrap shrink-0"
+              className="flex items-center gap-1.5 hover:text-sky-600 dark:hover:text-sky-400 transition-colors whitespace-nowrap shrink-0"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-sky-500" />
               Cadangan
             </button>
           </nav>

@@ -13,6 +13,7 @@ import {
 import { ShortcutItem, ShortcutGroup } from '../types';
 import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard } from '../utils/pathHelper';
+import { getGroupColorTheme } from '../utils/colorTheme';
 
 interface ShortcutListItemProps {
   shortcut: ShortcutItem;
@@ -67,17 +68,18 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
   }, [shortcut.iconValue, shortcut.iconType, shortcut.url]);
 
   const isDirectory = shortcut.type === 'directory';
+  const colorTheme = getGroupColorTheme(group?.color);
   const hasCustomPhoto = shortcut.iconType === 'custom' && isImageIcon(shortcut.iconValue) && !customPhotoError;
   const favicon = shortcut.iconType === 'favicon' && !faviconError ? getFaviconUrl(shortcut.url) : null;
 
   return (
     <div
       onClick={() => onLaunch(shortcut)}
-      className="group flex items-center justify-between gap-4 p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 border-b border-neutral-100 dark:border-neutral-800/80 transition-colors cursor-pointer text-xs"
+      className="group flex items-center justify-between gap-4 p-3 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/25 border-b border-neutral-100 dark:border-neutral-800/80 transition-colors cursor-pointer text-xs"
     >
       {/* Icon + Title + Group */}
       <div className="flex items-center gap-3 min-w-[240px] flex-1">
-        <div className="w-8 h-8 rounded-md bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs clay-icon-well">
+        <div className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 overflow-hidden shadow-2xs clay-icon-well ${colorTheme.iconBg}`}>
           {hasCustomPhoto ? (
             <img
               src={shortcut.iconValue}
@@ -98,7 +100,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
           ) : (
             <DynamicIcon
               name={isImageIcon(shortcut.iconValue) ? 'Globe' : shortcut.iconValue || 'Globe'}
-              className="w-4 h-4 text-indigo-600 dark:text-indigo-400"
+              className={`w-4 h-4 ${colorTheme.iconText}`}
             />
           )}
         </div>
@@ -113,7 +115,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
             )}
           </div>
           <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 mt-0.5">
-            <span className="truncate">{group?.name || 'Umum'}</span>
+            <span className={`truncate font-medium ${colorTheme.text}`}>{group?.name || 'Umum'}</span>
             <span aria-hidden="true">·</span>
             <span className="capitalize">{isDirectory ? 'Drive Lokal' : 'Web Link'}</span>
           </div>
@@ -152,7 +154,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
         <button
           type="button"
           onClick={() => onLaunch(shortcut)}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft"
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded font-semibold transition-colors clay-btn-soft ${colorTheme.openBtn}`}
         >
           {isDirectory ? <FolderOpen className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">Buka</span>
