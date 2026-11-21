@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   ExternalLink,
   Copy,
@@ -42,8 +43,10 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
   onDuplicate,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -114,9 +117,14 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
   }[density];
 
   return (
-    <div
+    <motion.div
       onClick={() => onLaunch(shortcut)}
-      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 ${containerPadding} transition-all duration-150 cursor-pointer shadow-xs hover:shadow-sm clay-card flex flex-col justify-between`}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      whileHover={shouldReduceMotion ? undefined : { y: -4, scale: 1.012 }}
+      whileTap={shouldReduceMotion ? undefined : { y: -1, scale: 0.985 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
+      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 ${containerPadding} transition-[box-shadow,border-color,background-color] duration-200 cursor-pointer shadow-xs hover:shadow-md clay-card flex flex-col justify-between`}
     >
       <div>
         {/* Top unboxed metadata line */}
@@ -149,8 +157,15 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                 <MoreVertical className="w-4 h-4" />
               </button>
 
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200 animate-in fade-in zoom-in-95 duration-100 clay-modal">
+              <AnimatePresence>
+                {showMenu && (
+                  <motion.div
+                    initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: -4 }}
+                    transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg py-1 z-20 text-xs text-neutral-700 dark:text-neutral-200 clay-modal origin-top-right"
+                  >
                   {canEditShortcut && (
                     <button
                       onClick={() => {
@@ -221,21 +236,30 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                       </button>
                     </>
                   )}
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
 
         {/* Card Header: Icon + Title */}
         <div className={`flex items-start ${density === 'small' ? 'gap-2' : density === 'large' ? 'gap-3.5' : 'gap-3'}`}>
-          <div className={`${
-            density === 'small'
-              ? 'w-7 h-7 rounded-md'
-              : density === 'large'
-              ? 'w-12 h-12 rounded-xl'
-              : 'w-10 h-10 rounded-lg'
-          } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors clay-icon-well`}>
+          <motion.div
+            animate={
+              shouldReduceMotion
+                ? undefined
+                : { scale: isHovered ? 1.07 : 1, rotate: isHovered ? -2 : 0 }
+            }
+            transition={{ type: 'spring', stiffness: 460, damping: 24 }}
+            className={`${
+              density === 'small'
+                ? 'w-7 h-7 rounded-md'
+                : density === 'large'
+                ? 'w-12 h-12 rounded-xl'
+                : 'w-10 h-10 rounded-lg'
+            } bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/80 dark:border-neutral-700/80 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:border-neutral-300 dark:group-hover:border-neutral-600 transition-colors clay-icon-well`}
+          >
             {hasCustomPhoto ? (
               <img
                 src={shortcut.iconValue}
@@ -259,7 +283,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                 className={`${density === 'small' ? 'w-3.5 h-3.5' : density === 'large' ? 'w-6 h-6' : 'w-5 h-5'} text-indigo-600 dark:text-indigo-400`}
               />
             )}
-          </div>
+          </motion.div>
 
           <div className="min-w-0 flex-1">
             <h3 className={`${
@@ -304,11 +328,14 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <button
+          <motion.button
             type="button"
             onClick={handleCopyPath}
+            whileHover={shouldReduceMotion ? undefined : { scale: 1.04, y: -1 }}
+            whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 26 }}
             title="Salin alamat"
-            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors clay-btn-soft ${
+            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors clay-btn-soft clay-motion-btn ${
               density === 'small' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'
             }`}
           >
@@ -323,12 +350,15 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
                 <span>{density === 'small' ? 'Salin' : 'Salin Path'}</span>
               </>
             )}
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
             type="button"
             onClick={() => onLaunch(shortcut)}
-            className={`inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft ${
+            whileHover={shouldReduceMotion ? undefined : { scale: 1.04, y: -1 }}
+            whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+            className={`inline-flex items-center gap-1 rounded bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-medium transition-colors clay-btn-soft clay-motion-btn ${
               density === 'small' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
             }`}
           >
@@ -339,13 +369,19 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
               </>
             ) : (
               <>
-                <ExternalLink className={`${density === 'small' ? 'w-2.5 h-2.5' : 'w-3 h-3'}`} />
+                <motion.span
+                  animate={shouldReduceMotion ? undefined : { x: isHovered ? 1.5 : 0 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+                  className="inline-flex"
+                >
+                  <ExternalLink className={`${density === 'small' ? 'w-2.5 h-2.5' : 'w-3 h-3'}`} />
+                </motion.span>
                 <span>Buka</span>
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
