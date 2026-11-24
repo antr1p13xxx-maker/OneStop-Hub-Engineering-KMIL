@@ -57,7 +57,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 // Hardcoded passwords per prompt requirement
 export const ROLE_PASSWORDS: Record<'lead' | 'manager', string> = {
   lead: 'Eng123',
-  manager: 'Eng159',
+  manager: 'Eng999',
 };
 
 const SESSION_ROLE_KEY = 'onestop_hub_session_role_v1';
