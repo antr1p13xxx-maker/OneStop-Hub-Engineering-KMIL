@@ -41,6 +41,7 @@ import {
   FIREBASE_DATABASE_URL,
   FIREBASE_CONSOLE_URL,
 } from '../firebase';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -70,6 +71,7 @@ interface SettingsModalProps {
   onSignInGoogle?: () => void;
   onSignOutGoogle?: () => void;
   onSyncLocalToCloud?: () => void;
+  onAppInstalled?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -100,6 +102,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSignInGoogle,
   onSignOutGoogle,
   onSyncLocalToCloud,
+  onAppInstalled,
 }) => {
   const [logoUrlInput, setLogoUrlInput] = useState('');
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -922,55 +925,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {firebaseUser ? (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-neutral-200/70 dark:border-neutral-800">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {firebaseUser.photoURL ? (
-                      <img
-                        src={firebaseUser.photoURL}
-                        alt={firebaseUser.displayName || 'Google User'}
-                        className="w-8 h-8 rounded-full border border-emerald-400/50 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                        {(firebaseUser.displayName || firebaseUser.email || 'U')[0].toUpperCase()}
+                <div className="space-y-3 pt-2 border-t border-neutral-200/70 dark:border-neutral-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {firebaseUser.photoURL ? (
+                        <img
+                          src={firebaseUser.photoURL}
+                          alt={firebaseUser.displayName || 'Google User'}
+                          className="w-8 h-8 rounded-full border border-emerald-400/50 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {(firebaseUser.displayName || firebaseUser.email || 'U')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                          {firebaseUser.displayName || 'Pengguna Google'}
+                        </p>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
+                          Tersinkronisasi Lintas Perangkat: {firebaseUser.email}
+                        </p>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
-                        {firebaseUser.displayName || 'Pengguna Google'}
-                      </p>
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
-                        Tersinkronisasi: {firebaseUser.email}
-                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {onSyncLocalToCloud && (
+                        <button
+                          type="button"
+                          onClick={onSyncLocalToCloud}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Unggah Data Lokal</span>
+                        </button>
+                      )}
+                      {onSignOutGoogle && (
+                        <button
+                          type="button"
+                          onClick={onSignOutGoogle}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Keluar</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {onSyncLocalToCloud && (
-                      <button
-                        type="button"
-                        onClick={onSyncLocalToCloud}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Unggah Data Lokal</span>
-                      </button>
-                    )}
-                    {onSignOutGoogle && (
-                      <button
-                        type="button"
-                        onClick={onSignOutGoogle}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Keluar</span>
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/35 border border-emerald-200/70 dark:border-emerald-800/40 rounded-lg px-3 py-2">
+                    Masuk dengan akun Google yang sama di komputer lain atau HP Anda untuk langsung menyinkronkan pintasan, grup, logo kustom, tema, gaya Clay 3D/Klasik, tata letak, dan densitas secara real-time.
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-neutral-200/70 dark:border-neutral-800">
                   <p className="text-xs text-neutral-600 dark:text-neutral-300">
-                    Saat ini memakai penyimpanan lokal browser. Masuk dengan Google untuk menyimpan ke Firestore Cloud.
+                    Saat ini memakai penyimpanan lokal browser. Masuk dengan Google agar seluruh pintasan &amp; pengaturan tampilan tersinkron otomatis di berbagai PC dan HP.
                   </p>
                   {onSignInGoogle && (
                     <button
@@ -986,6 +994,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="border-t border-neutral-100 dark:border-neutral-800" />
+
+          {/* SECTION 5: Install Aplikasi di Komputer & HP (PWA) */}
+          <div>
+            <PWAInstallButton variant="card" onInstalledToast={onAppInstalled} />
           </div>
         </div>
 

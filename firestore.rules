@@ -136,11 +136,13 @@ service cloud.firestore {
 
     function isValidWorkspaceSettings(data) {
       return data.keys().hasAll(['ownerId', 'cardDensity', 'viewMode', 'theme', 'jarvisIntroEnabled', 'jarvisAudioEnabled', 'updatedAt']) &&
-        data.keys().hasOnly(['ownerId', 'cardDensity', 'viewMode', 'theme', 'jarvisIntroEnabled', 'jarvisAudioEnabled', 'customLogoSrc', 'customLogoFit', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerId', 'cardDensity', 'viewMode', 'theme', 'uiStyle', 'sortBy', 'jarvisIntroEnabled', 'jarvisAudioEnabled', 'customLogoSrc', 'customLogoFit', 'updatedAt']) &&
         isValidId(data.ownerId) &&
         data.cardDensity in ['small', 'medium', 'large'] &&
         data.viewMode in ['grid', 'list', 'sections', 'orbit'] &&
         data.theme in ['light', 'dark'] &&
+        (!('uiStyle' in data) || data.uiStyle in ['claymorphism', 'classic']) &&
+        (!('sortBy' in data) || data.sortBy in ['clicks', 'recent', 'name']) &&
         data.jarvisIntroEnabled is bool &&
         data.jarvisAudioEnabled is bool &&
         (!('customLogoSrc' in data) || (data.customLogoSrc is string && data.customLogoSrc.size() <= 250000)) &&
@@ -295,8 +297,8 @@ service cloud.firestore {
           isValidWorkspaceSettings(incoming()) &&
           (isAdmin() || (
             existing().ownerId == request.auth.uid && (
-              // Action 1: Display preferences (density, viewMode, theme, jarvis)
-              incoming().diff(existing()).affectedKeys().hasOnly(['cardDensity', 'viewMode', 'theme', 'jarvisIntroEnabled', 'jarvisAudioEnabled', 'updatedAt']) ||
+              // Action 1: Display preferences (density, viewMode, theme, uiStyle, sortBy, jarvis)
+              incoming().diff(existing()).affectedKeys().hasOnly(['cardDensity', 'viewMode', 'theme', 'uiStyle', 'sortBy', 'jarvisIntroEnabled', 'jarvisAudioEnabled', 'updatedAt']) ||
               // Action 2: Custom Brand Logo update
               incoming().diff(existing()).affectedKeys().hasOnly(['customLogoSrc', 'customLogoFit', 'updatedAt'])
             )

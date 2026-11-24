@@ -23,6 +23,8 @@ import {
   CustomLogoConfig,
   ShortcutGroup,
   ShortcutItem,
+  SortOption,
+  UiStyle,
   ViewMode,
 } from '../types';
 
@@ -159,6 +161,8 @@ export interface WorkspacePreferencesPayload {
   cardDensity: CardDensity;
   viewMode: ViewMode;
   theme: 'light' | 'dark';
+  uiStyle: UiStyle;
+  sortBy: SortOption;
   jarvisIntroEnabled: boolean;
   jarvisAudioEnabled: boolean;
   customLogo: CustomLogoConfig | null;
@@ -300,6 +304,8 @@ function buildSettingsCreateDoc(uid: string, prefs: WorkspacePreferencesPayload)
     cardDensity: prefs.cardDensity,
     viewMode: prefs.viewMode,
     theme: prefs.theme,
+    uiStyle: prefs.uiStyle === 'classic' ? 'classic' : 'claymorphism',
+    sortBy: prefs.sortBy === 'recent' || prefs.sortBy === 'name' ? prefs.sortBy : 'clicks',
     jarvisIntroEnabled: Boolean(prefs.jarvisIntroEnabled),
     jarvisAudioEnabled: Boolean(prefs.jarvisAudioEnabled),
     updatedAt: serverTimestamp(),
@@ -486,6 +492,8 @@ export function subscribeToSettings(
             ? data.viewMode
             : 'grid',
         theme: data.theme === 'dark' ? 'dark' : 'light',
+        uiStyle: data.uiStyle === 'classic' ? 'classic' : 'claymorphism',
+        sortBy: data.sortBy === 'recent' || data.sortBy === 'name' ? data.sortBy : 'clicks',
         jarvisIntroEnabled: data.jarvisIntroEnabled !== false,
         jarvisAudioEnabled: data.jarvisAudioEnabled !== false,
         customLogo,
@@ -754,6 +762,8 @@ export async function savePreferencesToFirestore(
         cardDensity: prefs.cardDensity,
         viewMode: prefs.viewMode,
         theme: prefs.theme,
+        uiStyle: prefs.uiStyle === 'classic' ? 'classic' : 'claymorphism',
+        sortBy: prefs.sortBy === 'recent' || prefs.sortBy === 'name' ? prefs.sortBy : 'clicks',
         jarvisIntroEnabled: Boolean(prefs.jarvisIntroEnabled),
         jarvisAudioEnabled: Boolean(prefs.jarvisAudioEnabled),
         updatedAt: serverTimestamp(),

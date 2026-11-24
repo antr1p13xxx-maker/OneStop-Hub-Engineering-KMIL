@@ -259,6 +259,16 @@
           "enum": ["light", "dark"],
           "description": "Tema warna aplikasi."
         },
+        "uiStyle": {
+          "type": "string",
+          "enum": ["claymorphism", "classic"],
+          "description": "Gaya desain antarmuka (Claymorphism 3D atau Klasik Minimalis)."
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": ["clicks", "recent", "name"],
+          "description": "Urutan penyortiran daftar pintasan."
+        },
         "jarvisIntroEnabled": {
           "type": "boolean",
           "description": "Status animasi pembuka J.A.R.V.I.S."

@@ -21,6 +21,7 @@ import {
   CloudOff,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   theme: 'light' | 'dark';
@@ -43,6 +44,7 @@ interface HeaderProps {
   isSigningInGoogle?: boolean;
   onSignInGoogle?: () => void;
   onOpenCloudSettings?: () => void;
+  onAppInstalled?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -66,6 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
   isSigningInGoogle = false,
   onSignInGoogle,
   onOpenCloudSettings,
+  onAppInstalled,
 }) => {
   const roleConfig = ROLE_CONFIGS[currentRole];
   const [logoImgError, setLogoImgError] = useState(false);
@@ -78,10 +81,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 clay-header transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-8 h-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 lg:gap-8 h-16">
           {/* Zone 1: Single text wordmark + customizable logo photo */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink">
             <div className="flex items-center gap-2.5 group/logo">
               <div className="relative shrink-0">
                 <button
@@ -128,9 +131,9 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectGroupFilter('all')}
-                className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
+                className="text-left min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
               >
-                <span className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent whitespace-nowrap">
+                <span className="block text-sm sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent truncate max-w-[140px] sm:max-w-none whitespace-nowrap">
                   OneStop Hub Engineering
                 </span>
               </button>
@@ -274,6 +277,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
+
+            {/* PWA Install Button (hidden automatically if already installed in standalone mode) */}
+            <PWAInstallButton variant="header" onInstalledToast={onAppInstalled} />
 
             {/* Add Shortcut button with permission handling */}
             {canAddShortcut ? (

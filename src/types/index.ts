@@ -32,6 +32,8 @@ export type CardDensity = 'small' | 'medium' | 'large';
 
 export type UiStyle = 'claymorphism' | 'classic';
 
+export type SortOption = 'clicks' | 'recent' | 'name';
+
 export type LogoFitMode = 'cover' | 'contain';
 
 export interface CustomLogoConfig {

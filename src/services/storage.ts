@@ -541,3 +541,24 @@ export function applyUiStyleWithTransition(style: import('../types').UiStyle): v
   }, 400);
 }
 
+// Sort Preference Storage
+const STORAGE_SORT_BY_KEY = 'onestop_hub_sort_by_v1';
+
+export function getStoredSortBy(): import('../types').SortOption {
+  try {
+    const saved = localStorage.getItem(STORAGE_SORT_BY_KEY);
+    if (saved === 'clicks' || saved === 'recent' || saved === 'name') return saved;
+    return 'clicks';
+  } catch {
+    return 'clicks';
+  }
+}
+
+export function saveStoredSortBy(sort: import('../types').SortOption): void {
+  try {
+    localStorage.setItem(STORAGE_SORT_BY_KEY, sort);
+  } catch {
+    // Ignore
+  }
+}
+

@@ -28,7 +28,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { ShortcutItem, ShortcutGroup, ViewMode, FilterType, ShortcutType, UserRole, CardDensity, CustomLogoConfig, UiStyle } from './types';
+import { ShortcutItem, ShortcutGroup, ViewMode, FilterType, ShortcutType, UserRole, CardDensity, CustomLogoConfig, UiStyle, SortOption } from './types';
 import {
   DEFAULT_GROUPS,
   DEFAULT_SHORTCUTS,
@@ -56,6 +56,8 @@ import {
   getStoredUiStyle,
   saveStoredUiStyle,
   applyUiStyleWithTransition,
+  getStoredSortBy,
+  saveStoredSortBy,
   resetAllData,
 } from './services/storage';
 import {
@@ -107,6 +109,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { JarvisIntro } from './components/JarvisIntro';
 import { OrbitHubView } from './components/OrbitHubView';
 import { DynamicIcon, isImageIcon } from './components/DynamicIcon';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   // State
@@ -128,7 +131,12 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<FilterType>('all');
-  const [sortBy, setSortBy] = useState<'clicks' | 'recent' | 'name'>('clicks');
+  const [sortBy, setSortBy] = useState<SortOption>('clicks');
+  const selectedGroupFilterRef = React.useRef(selectedGroupFilter);
+
+  useEffect(() => {
+    selectedGroupFilterRef.current = selectedGroupFilter;
+  }, [selectedGroupFilter]);
 
   // Firebase Auth & Cloud Sync State
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -170,6 +178,7 @@ export default function App() {
     setViewMode(storedView);
     setPreviousViewMode(storedView);
     setCardDensity(getStoredCardDensity());
+    setSortBy(getStoredSortBy());
     setCurrentRole(getStoredRole());
     setCustomLogo(getStoredCustomLogo());
 
@@ -231,6 +240,8 @@ export default function App() {
             cardDensity: getStoredCardDensity(),
             viewMode: getStoredViewMode(),
             theme: getStoredTheme(),
+            uiStyle: getStoredUiStyle(),
+            sortBy: getStoredSortBy(),
             jarvisIntroEnabled: isJarvisIntroEnabled(),
             jarvisAudioEnabled: isJarvisAudioEnabled(),
             customLogo: getStoredCustomLogo(),
@@ -270,6 +281,13 @@ export default function App() {
             saveStoredTheme(cloudSettings.theme);
             applyThemeWithTransition(cloudSettings.theme);
 
+            setUiStyle(cloudSettings.uiStyle);
+            saveStoredUiStyle(cloudSettings.uiStyle);
+            applyUiStyleWithTransition(cloudSettings.uiStyle);
+
+            setSortBy(cloudSettings.sortBy);
+            saveStoredSortBy(cloudSettings.sortBy);
+
             setIsJarvisEnabled(cloudSettings.jarvisIntroEnabled);
             setJarvisIntroEnabled(cloudSettings.jarvisIntroEnabled);
 
@@ -281,12 +299,9 @@ export default function App() {
 
             setPreviousViewMode(cloudSettings.viewMode);
             saveStoredViewMode(cloudSettings.viewMode);
-            setSelectedGroupFilter((currentFilter) => {
-              if (currentFilter === 'all') {
-                setViewMode(cloudSettings.viewMode);
-              }
-              return currentFilter;
-            });
+            if (selectedGroupFilterRef.current === 'all') {
+              setViewMode(cloudSettings.viewMode);
+            }
           },
           handleSyncErr
         );
@@ -312,19 +327,21 @@ export default function App() {
     };
   }, [isAuthReady, firebaseUser]);
 
-  // Sync dynamic favicon with custom logo photo
+  // Sync dynamic favicon with custom logo photo (restores default /icon.svg when cleared)
   useEffect(() => {
     if (typeof document === 'undefined') return;
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
     if (customLogo?.src) {
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
+      link.removeAttribute('type');
       link.href = customLogo.src;
-    } else if (link) {
-      link.remove();
+    } else {
+      link.type = 'image/svg+xml';
+      link.href = '/icon.svg';
     }
   }, [customLogo?.src]);
 
@@ -355,6 +372,8 @@ export default function App() {
     cardDensity: overrides.cardDensity ?? cardDensity,
     viewMode: overrides.viewMode ?? (selectedGroupFilter !== 'all' ? previousViewMode : viewMode),
     theme: overrides.theme ?? theme,
+    uiStyle: overrides.uiStyle ?? uiStyle,
+    sortBy: overrides.sortBy ?? sortBy,
     jarvisIntroEnabled: overrides.jarvisIntroEnabled ?? isJarvisEnabled,
     jarvisAudioEnabled: overrides.jarvisAudioEnabled ?? isJarvisAudio,
     customLogo: overrides.customLogo !== undefined ? overrides.customLogo : customLogo,
@@ -380,11 +399,15 @@ export default function App() {
       const user = await signInWithGoogle();
       setToast({
         message: `Terhubung ke Google Firebase (${user.email})`,
-        details: 'Sinkronisasi real-time Firestore kini aktif untuk seluruh pintasan dan pengaturan.',
+        details: 'Sinkronisasi real-time Firestore kini aktif untuk seluruh pintasan & pengaturan di PC dan HP.',
       });
     } catch (err) {
       const code = (err as { code?: string })?.code;
-      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+      if (code === 'auth/popup-blocked') {
+        setCloudError({
+          message: 'Jendela login Google diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.',
+        });
+      } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
         setCloudError({
           message:
             err instanceof Error
@@ -448,6 +471,7 @@ export default function App() {
     setUiStyle(nextStyle);
     saveStoredUiStyle(nextStyle);
     applyUiStyleWithTransition(nextStyle);
+    persistCloudPreferences({ uiStyle: nextStyle });
     setToast({
       message:
         nextStyle === 'claymorphism'
@@ -457,6 +481,19 @@ export default function App() {
         nextStyle === 'claymorphism'
           ? 'Permukaan lembut membulat dengan kedalaman 3D taktil kini aktif.'
           : 'Tampilan datar ringkas dengan garis tepi tajam kini aktif.',
+    });
+  };
+
+  const handleSortByChange = (nextSort: SortOption) => {
+    setSortBy(nextSort);
+    saveStoredSortBy(nextSort);
+    persistCloudPreferences({ sortBy: nextSort });
+  };
+
+  const handleAppInstalled = () => {
+    setToast({
+      message: 'OneStop Hub Berhasil Diinstall!',
+      details: 'Aplikasi kini tersedia di desktop PC atau layar utama HP Anda.',
     });
   };
 
@@ -972,6 +1009,7 @@ export default function App() {
           setSettingsFocusSection('firebase');
           setIsSettingsOpen(true);
         }}
+        onAppInstalled={handleAppInstalled}
       />
 
       {/* Main Container */}
@@ -1107,7 +1145,7 @@ export default function App() {
               {/* Sort Dropdown */}
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'clicks' | 'recent' | 'name')}
+                onChange={(e) => handleSortByChange(e.target.value as SortOption)}
                 className="px-2.5 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 clay-inset"
               >
                 <option value="clicks">Paling Sering Digunakan</option>
@@ -1738,7 +1776,11 @@ export default function App() {
         onSignInGoogle={handleSignInGoogle}
         onSignOutGoogle={handleSignOutGoogle}
         onSyncLocalToCloud={handleSyncLocalToCloud}
+        onAppInstalled={handleAppInstalled}
       />
+
+      {/* Offline PWA Connectivity Indicator */}
+      <OfflineIndicator />
 
       {/* Cinematic J.A.R.V.I.S. Startup HUD */}
       {showJarvisIntro && (
