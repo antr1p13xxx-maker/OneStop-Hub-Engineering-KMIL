@@ -221,14 +221,14 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onOpenCloudSettings || onOpenSettings}
                 title={
                   cloudSyncStatus === 'offline'
-                    ? `Mode Offline (${firebaseUser.email || 'Google'}) — Perubahan akan tersinkron otomatis saat online`
+                    ? `Mode Cache Offline (${firebaseUser.email || 'Google'}) — Perubahan akan tersinkron otomatis saat online`
                     : cloudSyncStatus === 'error'
                     ? `Sinkronisasi Firebase perlu perhatian (${firebaseUser.email || 'Google'})`
                     : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing'
-                    ? `Menyinkronkan data dengan Firebase Cloud...`
-                    : `Tersinkron real-time ke Firebase Cloud (${firebaseUser.email || 'Google'})`
+                    ? `Menyinkronkan data live dengan Firebase Cloud...`
+                    : `Live Cloud Firebase Aktif (${firebaseUser.email || 'Google'})`
                 }
-                className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-semibold transition-colors whitespace-nowrap shrink-0 clay-btn-soft ${
+                className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors whitespace-nowrap shrink-0 clay-btn-soft ${
                   cloudSyncStatus === 'error'
                     ? 'border-rose-200 dark:border-rose-800/70 bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50'
                     : cloudSyncStatus === 'offline'
@@ -245,16 +245,21 @@ export const Header: React.FC<HeaderProps> = ({
                 ) : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing' ? (
                   <RefreshCw className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
                 ) : (
-                  <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="relative inline-flex items-center justify-center shrink-0">
+                    <Cloud className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </span>
                 )}
-                <span className="hidden lg:inline max-w-[96px] truncate">
+                <span className="hidden lg:inline max-w-[110px] truncate">
                   {cloudSyncStatus === 'offline'
                     ? 'Offline'
                     : cloudSyncStatus === 'error'
                     ? 'Sync Error'
-                    : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing'
+                    : cloudSyncStatus === 'connecting'
+                    ? 'Menghubungkan...'
+                    : cloudSyncStatus === 'syncing'
                     ? 'Menyinkron...'
-                    : firebaseUser.displayName?.split(' ')[0] || 'Cloud Aktif'}
+                    : 'Live Cloud'}
                 </span>
               </button>
             ) : onSignInGoogle ? (
@@ -262,12 +267,12 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onSignInGoogle}
                 disabled={isSigningInGoogle}
-                title="Masuk dengan Google untuk menyimpan database di Google Firebase Firestore"
-                className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 clay-btn-soft"
+                title="Masuk dengan Google untuk mengaktifkan Live Cloud Firebase antar PC & HP"
+                className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg border border-indigo-200/80 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 clay-btn-soft"
               >
-                <CloudOff className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                <Cloud className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <span className="hidden lg:inline">
-                  {isSigningInGoogle ? 'Menghubungkan...' : 'Cloud Sync'}
+                  {isSigningInGoogle ? 'Menghubungkan...' : 'Live Cloud'}
                 </span>
               </button>
             ) : null}

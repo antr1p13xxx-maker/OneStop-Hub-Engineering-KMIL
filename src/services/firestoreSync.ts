@@ -5,7 +5,9 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   limit,
   onSnapshot,
   query,
@@ -106,9 +108,25 @@ export function isQuotaExceededError(error: unknown): boolean {
   );
 }
 
+export interface SnapshotSyncMeta {
+  fromCache: boolean;
+  hasPendingWrites: boolean;
+}
+
+export function isNotFoundError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code?.toLowerCase() || '';
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error || '').toLowerCase();
+  return (
+    code === 'not-found' ||
+    msg.includes('no document to update') ||
+    msg.includes('not-found')
+  );
+}
+
 export function formatFirestoreErrorForUser(error: unknown): {
   message: string;
   isQuota: boolean;
+  code?: string;
 } {
   if (isQuotaExceededError(error)) {
     return {
@@ -118,6 +136,7 @@ export function formatFirestoreErrorForUser(error: unknown): {
     };
   }
 
+  const rawCode = (error as { code?: string })?.code?.toLowerCase() || '';
   let rawMessage = error instanceof Error ? error.message : String(error || '');
   try {
     const parsed = JSON.parse(rawMessage) as Partial<FirestoreErrorInfo>;
@@ -129,31 +148,81 @@ export function formatFirestoreErrorForUser(error: unknown): {
   }
 
   const lower = rawMessage.toLowerCase();
-  if (lower.includes('permission-denied') || lower.includes('missing or insufficient permissions')) {
+  const hostHint =
+    typeof window !== 'undefined' && window.location?.hostname
+      ? window.location.hostname
+      : 'domain aplikasi ini';
+
+  if (rawCode === 'auth/unauthorized-domain' || lower.includes('unauthorized-domain')) {
     return {
-      message:
-        'Izin akses Firestore ditolak. Pastikan Anda masuk dengan akun Google yang terverifikasi.',
+      message: `Domain "${hostHint}" belum diotorisasi di Firebase Authentication. Tambahkan "${hostHint}" di Firebase Console → Authentication → Settings → Authorized domains.`,
       isQuota: false,
+      code: 'auth/unauthorized-domain',
     };
   }
-  if (lower.includes('unavailable') || lower.includes('network') || lower.includes('offline')) {
+  if (rawCode === 'auth/operation-not-allowed' || lower.includes('operation-not-allowed')) {
     return {
       message:
-        'Koneksi ke Firebase Firestore sedang terganggu. Perubahan tersimpan di cache lokal dan akan tersinkron otomatis saat online.',
+        'Metode login Google belum diaktifkan di Firebase Console → Authentication → Sign-in method.',
       isQuota: false,
+      code: 'auth/operation-not-allowed',
     };
   }
-  if (lower.includes('failed-precondition') || lower.includes('index')) {
+  if (rawCode === 'auth/popup-blocked' || lower.includes('popup-blocked')) {
+    return {
+      message:
+        'Jendela login Google diblokir oleh browser. Izinkan pop-up untuk situs ini atau buka aplikasi di tab baru lalu coba lagi.',
+      isQuota: false,
+      code: 'auth/popup-blocked',
+    };
+  }
+  if (rawCode === 'auth/network-request-failed' || lower.includes('network-request-failed')) {
+    return {
+      message:
+        'Permintaan autentikasi Google gagal karena gangguan jaringan. Periksa koneksi internet Anda lalu coba lagi.',
+      isQuota: false,
+      code: 'auth/network-request-failed',
+    };
+  }
+  if (
+    rawCode === 'permission-denied' ||
+    lower.includes('permission-denied') ||
+    lower.includes('missing or insufficient permissions')
+  ) {
+    return {
+      message:
+        'Izin akses Firestore ditolak. Pastikan Anda masuk dengan akun Google yang memiliki email terverifikasi.',
+      isQuota: false,
+      code: 'permission-denied',
+    };
+  }
+  if (
+    rawCode === 'unavailable' ||
+    lower.includes('unavailable') ||
+    lower.includes('the client is offline') ||
+    lower.includes('network') ||
+    lower.includes('offline')
+  ) {
+    return {
+      message:
+        'Koneksi ke server Firebase Firestore sedang terganggu. Perubahan tersimpan di cache lokal dan akan tersinkron otomatis saat online.',
+      isQuota: false,
+      code: 'unavailable',
+    };
+  }
+  if (rawCode === 'failed-precondition' || lower.includes('failed-precondition') || lower.includes('index')) {
     return {
       message:
         'Database Firestore belum siap atau membutuhkan indeks. Silakan coba muat ulang halaman.',
       isQuota: false,
+      code: 'failed-precondition',
     };
   }
 
   return {
     message: rawMessage || 'Gagal menyinkronkan data dengan Firebase Firestore.',
     isQuota: false,
+    code: rawCode || undefined,
   };
 }
 
@@ -454,12 +523,73 @@ export async function bootstrapInitialWorkspaceData(
   return migrated;
 }
 
+function parseGroupDoc(id: string, data: Record<string, unknown>): ShortcutGroup {
+  return {
+    id: String(data.id || id),
+    name: String(data.name || ''),
+    description: typeof data.description === 'string' ? data.description : undefined,
+    color: VALID_GROUP_COLORS.has(data.color as ShortcutGroup['color'])
+      ? (data.color as ShortcutGroup['color'])
+      : 'indigo',
+    icon: String(data.icon || 'Folder'),
+    order: typeof data.order === 'number' ? data.order : 0,
+  };
+}
+
+function parseShortcutDoc(id: string, data: Record<string, unknown>): ShortcutItem {
+  return {
+    id: String(data.id || id),
+    title: String(data.title || ''),
+    url: String(data.url || ''),
+    type: VALID_SHORTCUT_TYPES.has(data.type as ShortcutItem['type'])
+      ? (data.type as ShortcutItem['type'])
+      : 'web',
+    groupId: String(data.groupId || ''),
+    description: typeof data.description === 'string' ? data.description : undefined,
+    iconType: VALID_ICON_TYPES.has(data.iconType as ShortcutItem['iconType'])
+      ? (data.iconType as ShortcutItem['iconType'])
+      : 'preset',
+    iconValue: typeof data.iconValue === 'string' ? data.iconValue : undefined,
+    color: typeof data.color === 'string' ? data.color : undefined,
+    isPinned: Boolean(data.isPinned),
+    clickCount: typeof data.clickCount === 'number' ? data.clickCount : 0,
+    lastOpened: typeof data.lastOpened === 'number' ? data.lastOpened : undefined,
+    tags: Array.isArray(data.tags) ? data.tags.map((t) => String(t)) : undefined,
+    createdAt: toTimestampMillis(data.createdAt),
+  };
+}
+
+function parseSettingsDoc(data: Record<string, unknown>): WorkspacePreferencesPayload {
+  const customLogoSrc = typeof data.customLogoSrc === 'string' ? data.customLogoSrc : '';
+  const customLogo: CustomLogoConfig | null = customLogoSrc
+    ? {
+        src: customLogoSrc,
+        fit: data.customLogoFit === 'contain' ? 'contain' : 'cover',
+      }
+    : null;
+
+  return {
+    cardDensity:
+      data.cardDensity === 'small' || data.cardDensity === 'large' ? data.cardDensity : 'medium',
+    viewMode:
+      data.viewMode === 'list' || data.viewMode === 'sections' || data.viewMode === 'orbit'
+        ? data.viewMode
+        : 'grid',
+    theme: data.theme === 'dark' ? 'dark' : 'light',
+    uiStyle: data.uiStyle === 'classic' ? 'classic' : 'claymorphism',
+    sortBy: data.sortBy === 'recent' || data.sortBy === 'name' ? data.sortBy : 'clicks',
+    jarvisIntroEnabled: data.jarvisIntroEnabled !== false,
+    jarvisAudioEnabled: data.jarvisAudioEnabled !== false,
+    customLogo,
+  };
+}
+
 // ============================================================================
-// Real-Time Subscriptions (onSnapshot)
+// Real-Time Subscriptions (onSnapshot with Live Metadata Tracking)
 // ============================================================================
 export function subscribeToGroups(
   userId: string,
-  onData: (groups: ShortcutGroup[]) => void,
+  onData: (groups: ShortcutGroup[], meta: SnapshotSyncMeta) => void,
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const uid = sanitizeId(userId, 'user');
@@ -468,20 +598,16 @@ export function subscribeToGroups(
 
   return onSnapshot(
     q,
+    { includeMetadataChanges: true },
     (snapshot) => {
-      const parsed: ShortcutGroup[] = snapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: String(data.id || d.id),
-          name: String(data.name || ''),
-          description: typeof data.description === 'string' ? data.description : undefined,
-          color: VALID_GROUP_COLORS.has(data.color) ? data.color : 'indigo',
-          icon: String(data.icon || 'Folder'),
-          order: typeof data.order === 'number' ? data.order : 0,
-        };
-      });
+      const parsed: ShortcutGroup[] = snapshot.docs.map((d) =>
+        parseGroupDoc(d.id, d.data() as Record<string, unknown>)
+      );
       parsed.sort((a, b) => a.order - b.order);
-      onData(parsed);
+      onData(parsed, {
+        fromCache: snapshot.metadata.fromCache,
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
+      });
     },
     (error) => {
       const info = logFirestoreError(error, OperationType.LIST, path);
@@ -492,7 +618,7 @@ export function subscribeToGroups(
 
 export function subscribeToShortcuts(
   userId: string,
-  onData: (shortcuts: ShortcutItem[]) => void,
+  onData: (shortcuts: ShortcutItem[], meta: SnapshotSyncMeta) => void,
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const uid = sanitizeId(userId, 'user');
@@ -501,27 +627,15 @@ export function subscribeToShortcuts(
 
   return onSnapshot(
     q,
+    { includeMetadataChanges: true },
     (snapshot) => {
-      const parsed: ShortcutItem[] = snapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: String(data.id || d.id),
-          title: String(data.title || ''),
-          url: String(data.url || ''),
-          type: VALID_SHORTCUT_TYPES.has(data.type) ? data.type : 'web',
-          groupId: String(data.groupId || ''),
-          description: typeof data.description === 'string' ? data.description : undefined,
-          iconType: VALID_ICON_TYPES.has(data.iconType) ? data.iconType : 'preset',
-          iconValue: typeof data.iconValue === 'string' ? data.iconValue : undefined,
-          color: typeof data.color === 'string' ? data.color : undefined,
-          isPinned: Boolean(data.isPinned),
-          clickCount: typeof data.clickCount === 'number' ? data.clickCount : 0,
-          lastOpened: typeof data.lastOpened === 'number' ? data.lastOpened : undefined,
-          tags: Array.isArray(data.tags) ? data.tags.map((t) => String(t)) : undefined,
-          createdAt: toTimestampMillis(data.createdAt),
-        };
+      const parsed: ShortcutItem[] = snapshot.docs.map((d) =>
+        parseShortcutDoc(d.id, d.data() as Record<string, unknown>)
+      );
+      onData(parsed, {
+        fromCache: snapshot.metadata.fromCache,
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
       });
-      onData(parsed);
     },
     (error) => {
       const info = logFirestoreError(error, OperationType.LIST, path);
@@ -532,7 +646,7 @@ export function subscribeToShortcuts(
 
 export function subscribeToSettings(
   userId: string,
-  onData: (settings: WorkspacePreferencesPayload) => void,
+  onData: (settings: WorkspacePreferencesPayload, meta: SnapshotSyncMeta) => void,
   onError?: (err: unknown) => void
 ): Unsubscribe {
   const uid = sanitizeId(userId, 'user');
@@ -541,30 +655,12 @@ export function subscribeToSettings(
 
   return onSnapshot(
     ref,
+    { includeMetadataChanges: true },
     (snapshot) => {
       if (!snapshot.exists()) return;
-      const data = snapshot.data();
-      const customLogoSrc = typeof data.customLogoSrc === 'string' ? data.customLogoSrc : '';
-      const customLogo: CustomLogoConfig | null = customLogoSrc
-        ? {
-            src: customLogoSrc,
-            fit: data.customLogoFit === 'contain' ? 'contain' : 'cover',
-          }
-        : null;
-
-      onData({
-        cardDensity:
-          data.cardDensity === 'small' || data.cardDensity === 'large' ? data.cardDensity : 'medium',
-        viewMode:
-          data.viewMode === 'list' || data.viewMode === 'sections' || data.viewMode === 'orbit'
-            ? data.viewMode
-            : 'grid',
-        theme: data.theme === 'dark' ? 'dark' : 'light',
-        uiStyle: data.uiStyle === 'classic' ? 'classic' : 'claymorphism',
-        sortBy: data.sortBy === 'recent' || data.sortBy === 'name' ? data.sortBy : 'clicks',
-        jarvisIntroEnabled: data.jarvisIntroEnabled !== false,
-        jarvisAudioEnabled: data.jarvisAudioEnabled !== false,
-        customLogo,
+      onData(parseSettingsDoc(snapshot.data() as Record<string, unknown>), {
+        fromCache: snapshot.metadata.fromCache,
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
       });
     },
     (error) => {
@@ -572,6 +668,41 @@ export function subscribeToSettings(
       onError?.(new Error(JSON.stringify(info)));
     }
   );
+}
+
+export async function refreshWorkspaceFromServer(userId: string): Promise<{
+  groups: ShortcutGroup[];
+  shortcuts: ShortcutItem[];
+  settings: WorkspacePreferencesPayload | null;
+}> {
+  const uid = sanitizeId(userId, 'user');
+  const groupsQuery = query(collection(db, 'workspaces', uid, 'groups'), where('ownerId', '==', uid));
+  const shortcutsQuery = query(collection(db, 'workspaces', uid, 'shortcuts'), where('ownerId', '==', uid));
+  const settingsRef = doc(db, 'workspaces', uid, 'settings', 'config');
+
+  try {
+    const [groupsSnap, shortcutsSnap, settingsSnap] = await Promise.all([
+      getDocsFromServer(groupsQuery),
+      getDocsFromServer(shortcutsQuery),
+      getDocFromServer(settingsRef),
+    ]);
+
+    const groups = groupsSnap.docs
+      .map((d) => parseGroupDoc(d.id, d.data() as Record<string, unknown>))
+      .sort((a, b) => a.order - b.order);
+
+    const shortcuts = shortcutsSnap.docs.map((d) =>
+      parseShortcutDoc(d.id, d.data() as Record<string, unknown>)
+    );
+
+    const settings = settingsSnap.exists()
+      ? parseSettingsDoc(settingsSnap.data() as Record<string, unknown>)
+      : null;
+
+    return { groups, shortcuts, settings };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, `workspaces/${uid}`);
+  }
 }
 
 // ============================================================================
@@ -624,6 +755,10 @@ export async function updateShortcutInFirestore(
   try {
     await updateDoc(doc(db, 'workspaces', uid, 'shortcuts', scId), updatePayload);
   } catch (error) {
+    if (isNotFoundError(error)) {
+      await createShortcutInFirestore(uid, { ...shortcut, id: scId });
+      return;
+    }
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
@@ -644,6 +779,9 @@ export async function recordShortcutLaunchInFirestore(
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
+    if (isNotFoundError(error)) {
+      return;
+    }
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
@@ -662,6 +800,9 @@ export async function toggleShortcutPinInFirestore(
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
+    if (isNotFoundError(error)) {
+      return;
+    }
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
@@ -680,62 +821,85 @@ export async function deleteShortcutFromFirestore(
   }
 }
 
+function buildGroupUpdateDoc(group: ShortcutGroup, index: number): Record<string, unknown> {
+  if (group.icon && group.icon.length > 250000) {
+    throw new Error('Ukuran foto ikon grup terlalu besar (maksimal 250KB).');
+  }
+  return {
+    name: clampString(group.name, 80, 'Grup Baru'),
+    description: group.description?.trim() ? clampString(group.description, 240) : deleteField(),
+    color: VALID_GROUP_COLORS.has(group.color) ? group.color : 'indigo',
+    icon: clampString(group.icon, 250000, 'Folder'),
+    order:
+      typeof group.order === 'number' && Number.isFinite(group.order)
+        ? Math.min(Math.max(0, group.order), 10000)
+        : index + 1,
+    updatedAt: serverTimestamp(),
+  };
+}
+
 export async function syncGroupsToFirestore(
   userId: string,
-  prevGroups: ShortcutGroup[],
+  _prevGroups: ShortcutGroup[],
   nextGroups: ShortcutGroup[]
 ): Promise<void> {
   const uid = sanitizeId(userId, 'user');
-  const prevMap = new Map(prevGroups.map((g) => [g.id, g]));
-  const nextMap = new Map(nextGroups.map((g) => [g.id, g]));
+  const groupsCol = collection(db, 'workspaces', uid, 'groups');
+  const groupsPath = `workspaces/${uid}/groups`;
 
-  // Delete removed groups
-  for (const oldGroup of prevGroups) {
-    if (!nextMap.has(oldGroup.id)) {
-      const gId = sanitizeId(oldGroup.id, 'group');
-      const path = `workspaces/${uid}/groups/${gId}`;
-      try {
-        await deleteDoc(doc(db, 'workspaces', uid, 'groups', gId));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, path);
-      }
+  // Validate all payloads in memory before touching Firestore
+  const prepared = nextGroups.map((group, index) => {
+    const gId = sanitizeId(group.id, `group-${index}`);
+    const createDoc = buildGroupCreateDoc(uid, { ...group, id: gId }, index);
+    const updatePayload = buildGroupUpdateDoc(group, index);
+    return { gId, createPayload: createDoc.payload, updatePayload };
+  });
+
+  const existingSnap = await getDocs(query(groupsCol, where('ownerId', '==', uid)));
+  const existingIds = new Set(existingSnap.docs.map((d) => d.id));
+  const nextIds = new Set(prepared.map((p) => p.gId));
+
+  const batch = writeBatch(db);
+  const ops: { type: 'set' | 'update' | 'delete'; ref: ReturnType<typeof doc>; payload?: Record<string, unknown> }[] = [];
+
+  for (const item of prepared) {
+    const ref = doc(db, 'workspaces', uid, 'groups', item.gId);
+    if (existingIds.has(item.gId)) {
+      ops.push({ type: 'update', ref, payload: item.updatePayload });
+    } else {
+      ops.push({ type: 'set', ref, payload: item.createPayload });
     }
   }
 
-  // Create or update groups
-  for (let i = 0; i < nextGroups.length; i++) {
-    const group = nextGroups[i];
-    const gId = sanitizeId(group.id, `group-${i}`);
-    const path = `workspaces/${uid}/groups/${gId}`;
+  for (const oldDoc of existingSnap.docs) {
+    if (!nextIds.has(oldDoc.id)) {
+      ops.push({ type: 'delete', ref: oldDoc.ref });
+    }
+  }
 
-    if (!prevMap.has(group.id)) {
-      const { payload } = buildGroupCreateDoc(uid, { ...group, id: gId }, i);
-      try {
-        await setDoc(doc(db, 'workspaces', uid, 'groups', gId), payload);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, path);
-      }
+  if (ops.length === 0) return;
+
+  try {
+    if (ops.length <= 400) {
+      ops.forEach((op) => {
+        if (op.type === 'set' && op.payload) batch.set(op.ref, op.payload);
+        else if (op.type === 'update' && op.payload) batch.update(op.ref, op.payload);
+        else if (op.type === 'delete') batch.delete(op.ref);
+      });
+      await batch.commit();
     } else {
-      if (group.icon && group.icon.length > 250000) {
-        throw new Error('Ukuran foto ikon grup terlalu besar (maksimal 250KB).');
-      }
-      const updatePayload: Record<string, unknown> = {
-        name: clampString(group.name, 80, 'Grup Baru'),
-        description: group.description?.trim() ? clampString(group.description, 240) : deleteField(),
-        color: VALID_GROUP_COLORS.has(group.color) ? group.color : 'indigo',
-        icon: clampString(group.icon, 250000, 'Folder'),
-        order:
-          typeof group.order === 'number' && Number.isFinite(group.order)
-            ? Math.min(Math.max(0, group.order), 10000)
-            : i + 1,
-        updatedAt: serverTimestamp(),
-      };
-      try {
-        await updateDoc(doc(db, 'workspaces', uid, 'groups', gId), updatePayload);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, path);
+      for (let i = 0; i < ops.length; i += 400) {
+        const chunkBatch = writeBatch(db);
+        ops.slice(i, i + 400).forEach((op) => {
+          if (op.type === 'set' && op.payload) chunkBatch.set(op.ref, op.payload);
+          else if (op.type === 'update' && op.payload) chunkBatch.update(op.ref, op.payload);
+          else if (op.type === 'delete') chunkBatch.delete(op.ref);
+        });
+        await chunkBatch.commit();
       }
     }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, groupsPath);
   }
 }
 
@@ -796,20 +960,25 @@ export async function reassignShortcutsGroupInFirestore(
   shortcutIds: string[],
   toGroupId: string
 ): Promise<void> {
+  if (shortcutIds.length === 0) return;
   const uid = sanitizeId(userId, 'user');
   const targetGroupId = sanitizeId(toGroupId, 'group');
+  const path = `workspaces/${uid}/shortcuts`;
 
-  for (const rawId of shortcutIds) {
-    const scId = sanitizeId(rawId, 'sc');
-    const path = `workspaces/${uid}/shortcuts/${scId}`;
-    try {
-      await updateDoc(doc(db, 'workspaces', uid, 'shortcuts', scId), {
-        groupId: targetGroupId,
-        updatedAt: serverTimestamp(),
+  try {
+    for (let i = 0; i < shortcutIds.length; i += 400) {
+      const batch = writeBatch(db);
+      shortcutIds.slice(i, i + 400).forEach((rawId) => {
+        const scId = sanitizeId(rawId, 'sc');
+        batch.update(doc(db, 'workspaces', uid, 'shortcuts', scId), {
+          groupId: targetGroupId,
+          updatedAt: serverTimestamp(),
+        });
       });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      await batch.commit();
     }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
 
@@ -885,62 +1054,118 @@ export async function replaceWorkspaceDataInFirestore(
   const shortcutsCol = collection(db, 'workspaces', uid, 'shortcuts');
   const groupsCol = collection(db, 'workspaces', uid, 'groups');
 
-  // 1. Delete existing shortcuts first
-  try {
-    const existingScSnap = await getDocs(query(shortcutsCol, where('ownerId', '==', uid)));
-    for (let i = 0; i < existingScSnap.docs.length; i += 400) {
-      const batch = writeBatch(db);
-      existingScSnap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `workspaces/${uid}/shortcuts`);
-  }
+  // 1. Pre-build & validate ALL payloads in memory BEFORE writing anything
+  const preparedGroups = newGroups.map((group, idx) => {
+    const { id, payload: createPayload } = buildGroupCreateDoc(uid, group, idx);
+    const updatePayload = buildGroupUpdateDoc(group, idx);
+    return { id, createPayload, updatePayload };
+  });
 
-  // 2. Delete existing groups
-  try {
-    const existingGrpSnap = await getDocs(query(groupsCol, where('ownerId', '==', uid)));
-    for (let i = 0; i < existingGrpSnap.docs.length; i += 400) {
-      const batch = writeBatch(db);
-      existingGrpSnap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `workspaces/${uid}/groups`);
-  }
+  const validGroupIds = new Set(preparedGroups.map((g) => g.id));
+  const fallbackGroupId = preparedGroups[0]?.id || 'group-general';
 
-  // 3. Create new groups
-  const validGroupIds = new Set<string>();
-  if (newGroups.length > 0) {
+  const preparedShortcuts =
+    validGroupIds.size > 0
+      ? newShortcuts.map((sc) => {
+          const { id, payload: createPayload } = buildShortcutCreateDoc(
+            uid,
+            sc,
+            validGroupIds,
+            fallbackGroupId
+          );
+          const trimmedIconValue = sc.iconValue?.trim();
+          const updatePayload: Record<string, unknown> = {
+            title: createPayload.title,
+            url: createPayload.url,
+            type: createPayload.type,
+            groupId: createPayload.groupId,
+            iconType: createPayload.iconType,
+            isPinned: createPayload.isPinned,
+            description: sc.description?.trim() ? clampString(sc.description, 500) : deleteField(),
+            iconValue: trimmedIconValue ? clampString(trimmedIconValue, 250000) : deleteField(),
+            color: sc.color?.trim() ? clampString(sc.color, 30) : deleteField(),
+            tags: sanitizeTags(sc.tags) ?? deleteField(),
+            updatedAt: serverTimestamp(),
+          };
+          return { id, createPayload, updatePayload };
+        })
+      : [];
+
+  // 2. Fetch existing documents to compute safe diff without emptying active snapshots
+  const [existingGrpSnap, existingScSnap] = await Promise.all([
+    getDocs(query(groupsCol, where('ownerId', '==', uid))),
+    getDocs(query(shortcutsCol, where('ownerId', '==', uid))),
+  ]);
+
+  const existingGroupIds = new Set(existingGrpSnap.docs.map((d) => d.id));
+  const existingShortcutIds = new Set(existingScSnap.docs.map((d) => d.id));
+  const nextShortcutIds = new Set(preparedShortcuts.map((s) => s.id));
+
+  // 3. Upsert groups FIRST (required so groupExistsInWorkspace rules succeed for shortcuts)
+  if (preparedGroups.length > 0) {
     try {
-      for (let i = 0; i < newGroups.length; i += 400) {
+      for (let i = 0; i < preparedGroups.length; i += 400) {
         const batch = writeBatch(db);
-        newGroups.slice(i, i + 400).forEach((group, idx) => {
-          const { id, payload } = buildGroupCreateDoc(uid, group, i + idx);
-          validGroupIds.add(id);
-          batch.set(doc(db, 'workspaces', uid, 'groups', id), payload);
+        preparedGroups.slice(i, i + 400).forEach((item) => {
+          const ref = doc(db, 'workspaces', uid, 'groups', item.id);
+          if (existingGroupIds.has(item.id)) {
+            batch.update(ref, item.updatePayload);
+          } else {
+            batch.set(ref, item.createPayload);
+          }
         });
         await batch.commit();
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `workspaces/${uid}/groups`);
+      handleFirestoreError(error, OperationType.WRITE, `workspaces/${uid}/groups`);
     }
   }
 
-  // 4. Create new shortcuts
-  if (newShortcuts.length > 0 && validGroupIds.size > 0) {
-    const fallbackGroupId = Array.from(validGroupIds)[0];
+  // 4. Upsert shortcuts
+  if (preparedShortcuts.length > 0) {
     try {
-      for (let i = 0; i < newShortcuts.length; i += 400) {
+      for (let i = 0; i < preparedShortcuts.length; i += 400) {
         const batch = writeBatch(db);
-        newShortcuts.slice(i, i + 400).forEach((sc) => {
-          const { id, payload } = buildShortcutCreateDoc(uid, sc, validGroupIds, fallbackGroupId);
-          batch.set(doc(db, 'workspaces', uid, 'shortcuts', id), payload);
+        preparedShortcuts.slice(i, i + 400).forEach((item) => {
+          const ref = doc(db, 'workspaces', uid, 'shortcuts', item.id);
+          if (existingShortcutIds.has(item.id)) {
+            batch.update(ref, item.updatePayload);
+          } else {
+            batch.set(ref, item.createPayload);
+          }
         });
         await batch.commit();
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `workspaces/${uid}/shortcuts`);
+      handleFirestoreError(error, OperationType.WRITE, `workspaces/${uid}/shortcuts`);
+    }
+  }
+
+  // 5. Delete stale shortcuts
+  const staleShortcutDocs = existingScSnap.docs.filter((d) => !nextShortcutIds.has(d.id));
+  if (staleShortcutDocs.length > 0) {
+    try {
+      for (let i = 0; i < staleShortcutDocs.length; i += 400) {
+        const batch = writeBatch(db);
+        staleShortcutDocs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `workspaces/${uid}/shortcuts`);
+    }
+  }
+
+  // 6. Delete stale groups LAST
+  const staleGroupDocs = existingGrpSnap.docs.filter((d) => !validGroupIds.has(d.id));
+  if (staleGroupDocs.length > 0) {
+    try {
+      for (let i = 0; i < staleGroupDocs.length; i += 400) {
+        const batch = writeBatch(db);
+        staleGroupDocs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `workspaces/${uid}/groups`);
     }
   }
 }

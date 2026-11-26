@@ -16,6 +16,10 @@ import {
   Sliders,
   Orbit,
   CloudAlert,
+  Cloud,
+  CloudOff,
+  RefreshCw,
+  LogIn,
   Trash2,
   Settings2,
   Layers,
@@ -63,6 +67,7 @@ import {
   resolveRedirectAuth,
   signInWithGoogle,
   signOutFirebase,
+  checkFirestoreServerConnectivity,
   FIREBASE_UPGRADE_URL,
 } from './firebase';
 import {
@@ -71,6 +76,7 @@ import {
   subscribeToGroups,
   subscribeToShortcuts,
   subscribeToSettings,
+  refreshWorkspaceFromServer,
   createShortcutInFirestore,
   updateShortcutInFirestore,
   recordShortcutLaunchInFirestore,
@@ -83,6 +89,7 @@ import {
   saveCustomLogoToFirestore,
   replaceWorkspaceDataInFirestore,
   formatFirestoreErrorForUser,
+  SnapshotSyncMeta,
   WorkspacePreferencesPayload,
 } from './services/firestoreSync';
 import { launchShortcut } from './utils/pathHelper';
@@ -127,19 +134,39 @@ export default function App() {
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortOption>('clicks');
   const selectedGroupFilterRef = React.useRef(selectedGroupFilter);
+  const themeRef = useRef<'light' | 'dark'>(theme);
+  const uiStyleRef = useRef<UiStyle>(uiStyle);
 
   useEffect(() => {
     selectedGroupFilterRef.current = selectedGroupFilter;
   }, [selectedGroupFilter]);
+
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    uiStyleRef.current = uiStyle;
+  }, [uiStyle]);
 
   // Firebase Auth & Cloud Sync State
   const isOnline = useOnlineStatus();
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
   const [isSigningInGoogle, setIsSigningInGoogle] = useState<boolean>(false);
+  const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('local');
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
-  const [cloudError, setCloudError] = useState<{ message: string; isQuota?: boolean } | null>(null);
+  const [cloudError, setCloudError] = useState<{ message: string; isQuota?: boolean; code?: string } | null>(null);
+  const snapshotMetaRef = useRef<{
+    groups: SnapshotSyncMeta;
+    shortcuts: SnapshotSyncMeta;
+    settings: SnapshotSyncMeta;
+  }>({
+    groups: { fromCache: true, hasPendingWrites: false },
+    shortcuts: { fromCache: true, hasPendingWrites: false },
+    settings: { fromCache: true, hasPendingWrites: false },
+  });
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -258,9 +285,15 @@ export default function App() {
     }
     if (!isOnline) {
       setCloudSyncStatus('offline');
-    } else if (!cloudError) {
-      setCloudSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
+      return;
     }
+    void checkFirestoreServerConnectivity().then((state) => {
+      if (state === 'offline') {
+        setCloudSyncStatus('offline');
+      } else if (state === 'online' && !cloudError) {
+        setCloudSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
+      }
+    });
   }, [isOnline, firebaseUser, cloudError]);
 
   // Attach real-time Firestore listeners once Firebase Auth is ready & signed in
@@ -271,6 +304,34 @@ export default function App() {
     let unsubGroups: (() => void) | undefined;
     let unsubShortcuts: (() => void) | undefined;
     let unsubSettings: (() => void) | undefined;
+
+    snapshotMetaRef.current = {
+      groups: { fromCache: true, hasPendingWrites: false },
+      shortcuts: { fromCache: true, hasPendingWrites: false },
+      settings: { fromCache: false, hasPendingWrites: false },
+    };
+
+    const applySnapshotMetaStatus = (
+      source: 'groups' | 'shortcuts' | 'settings',
+      meta: SnapshotSyncMeta
+    ) => {
+      snapshotMetaRef.current[source] = meta;
+      if (!navigator.onLine) {
+        setCloudSyncStatus('offline');
+        return;
+      }
+      const metas = Object.values(snapshotMetaRef.current);
+      if (metas.some((m) => m.hasPendingWrites)) {
+        setCloudSyncStatus('syncing');
+        return;
+      }
+      if (!meta.fromCache) {
+        setCloudSyncStatus('synced');
+        setLastSyncedAt(Date.now());
+      } else {
+        setCloudSyncStatus((prev) => (prev === 'synced' ? 'synced' : 'connecting'));
+      }
+    };
 
     const handleSyncErr = (err: unknown) => {
       if (cancelled) return;
@@ -283,6 +344,13 @@ export default function App() {
       try {
         setCloudError(null);
         setCloudSyncStatus(navigator.onLine ? 'connecting' : 'offline');
+
+        const serverState = await checkFirestoreServerConnectivity();
+        if (cancelled) return;
+        if (serverState === 'offline') {
+          setCloudSyncStatus('offline');
+        }
+
         await syncUserProfileAndWorkspace(firebaseUser);
         const migrated = await bootstrapInitialWorkspaceData(
           firebaseUser.uid,
@@ -304,7 +372,7 @@ export default function App() {
 
         unsubGroups = subscribeToGroups(
           firebaseUser.uid,
-          (cloudGroups) => {
+          (cloudGroups, meta) => {
             if (cancelled) return;
             setGroups(cloudGroups);
             saveStoredGroups(cloudGroups);
@@ -314,38 +382,42 @@ export default function App() {
             ) {
               setSelectedGroupFilter('all');
             }
-            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
-            setLastSyncedAt(Date.now());
+            applySnapshotMetaStatus('groups', meta);
           },
           handleSyncErr
         );
 
         unsubShortcuts = subscribeToShortcuts(
           firebaseUser.uid,
-          (cloudShortcuts) => {
+          (cloudShortcuts, meta) => {
             if (cancelled) return;
             setShortcuts(cloudShortcuts);
             saveStoredShortcuts(cloudShortcuts);
-            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
-            setLastSyncedAt(Date.now());
+            applySnapshotMetaStatus('shortcuts', meta);
           },
           handleSyncErr
         );
 
         unsubSettings = subscribeToSettings(
           firebaseUser.uid,
-          (cloudSettings) => {
+          (cloudSettings, meta) => {
             if (cancelled) return;
             setCardDensity(cloudSettings.cardDensity);
             saveStoredCardDensity(cloudSettings.cardDensity);
 
-            setTheme(cloudSettings.theme);
-            saveStoredTheme(cloudSettings.theme);
-            applyThemeWithTransition(cloudSettings.theme);
+            if (cloudSettings.theme !== themeRef.current) {
+              themeRef.current = cloudSettings.theme;
+              setTheme(cloudSettings.theme);
+              saveStoredTheme(cloudSettings.theme);
+              applyThemeWithTransition(cloudSettings.theme);
+            }
 
-            setUiStyle(cloudSettings.uiStyle);
-            saveStoredUiStyle(cloudSettings.uiStyle);
-            applyUiStyleWithTransition(cloudSettings.uiStyle);
+            if (cloudSettings.uiStyle !== uiStyleRef.current) {
+              uiStyleRef.current = cloudSettings.uiStyle;
+              setUiStyle(cloudSettings.uiStyle);
+              saveStoredUiStyle(cloudSettings.uiStyle);
+              applyUiStyleWithTransition(cloudSettings.uiStyle);
+            }
 
             setSortBy(cloudSettings.sortBy);
             saveStoredSortBy(cloudSettings.sortBy);
@@ -364,8 +436,7 @@ export default function App() {
             if (selectedGroupFilterRef.current === 'all') {
               setViewMode(cloudSettings.viewMode);
             }
-            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
-            setLastSyncedAt(Date.now());
+            applySnapshotMetaStatus('settings', meta);
           },
           handleSyncErr
         );
@@ -472,25 +543,13 @@ export default function App() {
       }
     } catch (err) {
       const code = (err as { code?: string })?.code;
-      if (code === 'auth/popup-blocked') {
-        setCloudError({
-          message: 'Jendela login Google diblokir browser. Izinkan pop-up untuk situs ini atau buka di tab penuh lalu coba lagi.',
-        });
-      } else if (code === 'auth/unauthorized-domain') {
-        setCloudError({
-          message: 'Domain ini belum diotorisasi di Firebase Authentication. Tambahkan domain di Firebase Console → Authentication → Settings → Authorized domains.',
-        });
-      } else if (code === 'auth/operation-not-supported-in-this-environment') {
+      if (code === 'auth/operation-not-supported-in-this-environment') {
         setCloudError({
           message: 'Login Google di lingkungan pratinjau tersemat membutuhkan tab browser penuh. Buka aplikasi di tab baru lalu coba lagi.',
+          code,
         });
       } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        setCloudError({
-          message:
-            err instanceof Error
-              ? `Gagal masuk dengan Google: ${err.message}`
-              : 'Gagal masuk dengan Google.',
-        });
+        setCloudError(formatFirestoreErrorForUser(err));
       }
     } finally {
       setIsSigningInGoogle(false);
@@ -528,6 +587,75 @@ export default function App() {
     } catch (err) {
       setCloudError(formatFirestoreErrorForUser(err));
       setCloudSyncStatus('error');
+    }
+  };
+
+  const handleRefreshFromCloud = async () => {
+    if (!firebaseUser) return;
+    setIsRefreshingCloud(true);
+    setCloudError(null);
+    setCloudSyncStatus(navigator.onLine ? 'connecting' : 'offline');
+    try {
+      const conn = await checkFirestoreServerConnectivity();
+      if (conn === 'offline') {
+        setCloudSyncStatus('offline');
+        setCloudError({
+          message: 'Perangkat sedang offline atau tidak dapat menjangkau server Firebase Firestore.',
+          code: 'unavailable',
+        });
+        return;
+      }
+
+      const fresh = await refreshWorkspaceFromServer(firebaseUser.uid);
+      setGroups(fresh.groups);
+      saveStoredGroups(fresh.groups);
+      setShortcuts(fresh.shortcuts);
+      saveStoredShortcuts(fresh.shortcuts);
+
+      if (fresh.settings) {
+        setCardDensity(fresh.settings.cardDensity);
+        saveStoredCardDensity(fresh.settings.cardDensity);
+
+        if (fresh.settings.theme !== themeRef.current) {
+          themeRef.current = fresh.settings.theme;
+          setTheme(fresh.settings.theme);
+          saveStoredTheme(fresh.settings.theme);
+          applyThemeWithTransition(fresh.settings.theme);
+        }
+
+        if (fresh.settings.uiStyle !== uiStyleRef.current) {
+          uiStyleRef.current = fresh.settings.uiStyle;
+          setUiStyle(fresh.settings.uiStyle);
+          saveStoredUiStyle(fresh.settings.uiStyle);
+          applyUiStyleWithTransition(fresh.settings.uiStyle);
+        }
+
+        setSortBy(fresh.settings.sortBy);
+        saveStoredSortBy(fresh.settings.sortBy);
+        setIsJarvisEnabled(fresh.settings.jarvisIntroEnabled);
+        setJarvisIntroEnabled(fresh.settings.jarvisIntroEnabled);
+        setIsJarvisAudio(fresh.settings.jarvisAudioEnabled);
+        setJarvisAudioEnabled(fresh.settings.jarvisAudioEnabled);
+        setCustomLogo(fresh.settings.customLogo);
+        saveStoredCustomLogo(fresh.settings.customLogo);
+        setPreviousViewMode(fresh.settings.viewMode);
+        saveStoredViewMode(fresh.settings.viewMode);
+        if (selectedGroupFilterRef.current === 'all') {
+          setViewMode(fresh.settings.viewMode);
+        }
+      }
+
+      setCloudSyncStatus('synced');
+      setLastSyncedAt(Date.now());
+      showToast({
+        message: 'Live Cloud Firebase Disegarkan ☁️',
+        details: `${fresh.shortcuts.length} pintasan & ${fresh.groups.length} grup dimuat langsung dari server.`,
+      });
+    } catch (err) {
+      setCloudError(formatFirestoreErrorForUser(err));
+      setCloudSyncStatus('error');
+    } finally {
+      setIsRefreshingCloud(false);
     }
   };
 
@@ -1196,6 +1324,111 @@ export default function App() {
             </button>
           </div>
         )}
+
+        {/* Live Cloud Firebase Status Bar (visible on desktop & mobile, zero overlap) */}
+        <div
+          className={`rounded-xl px-3.5 py-2.5 border flex flex-wrap items-center justify-between gap-2.5 text-xs clay-surface transition-colors ${
+            firebaseUser
+              ? cloudSyncStatus === 'error'
+                ? 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60'
+                : cloudSyncStatus === 'offline'
+                ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60'
+                : 'bg-emerald-50/80 dark:bg-emerald-950/25 border-emerald-200/80 dark:border-emerald-800/50'
+              : 'bg-white/85 dark:bg-neutral-900/85 border-neutral-200 dark:border-neutral-800'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            {firebaseUser ? (
+              cloudSyncStatus === 'error' ? (
+                <CloudAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              ) : cloudSyncStatus === 'offline' ? (
+                <CloudOff className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              ) : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing' || isRefreshingCloud ? (
+                <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
+              ) : (
+                <span className="relative inline-flex items-center justify-center shrink-0">
+                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </span>
+              )
+            ) : (
+              <Cloud className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+            )}
+
+            <div className="min-w-0 flex-1">
+              {firebaseUser ? (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="font-bold text-neutral-900 dark:text-neutral-100">
+                    {cloudSyncStatus === 'error'
+                      ? 'Sinkronisasi Cloud Terganggu'
+                      : cloudSyncStatus === 'offline'
+                      ? 'Live Cloud (Mode Cache Offline)'
+                      : cloudSyncStatus === 'connecting'
+                      ? 'Menghubungkan Live Cloud Firebase...'
+                      : cloudSyncStatus === 'syncing' || isRefreshingCloud
+                      ? 'Menyinkronkan ke Firebase...'
+                      : 'Live Cloud Firebase Aktif'}
+                  </span>
+                  <span className="text-neutral-600 dark:text-neutral-400 truncate max-w-[220px] sm:max-w-none">
+                    {firebaseUser.email}
+                  </span>
+                  {lastSyncedAt && (
+                    <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
+                      · {new Date(lastSyncedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                    Penyimpanan Lokal Browser
+                  </span>
+                  <span className="text-neutral-500 dark:text-neutral-400">
+                    Hubungkan Google untuk sinkronisasi Live Cloud Firebase antar PC &amp; HP.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {firebaseUser ? (
+              <>
+                <button
+                  type="button"
+                  disabled={isRefreshingCloud || cloudSyncStatus === 'syncing'}
+                  onClick={handleRefreshFromCloud}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-neutral-800 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold disabled:opacity-60 transition-colors cursor-pointer clay-btn-soft whitespace-nowrap"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingCloud ? 'Menyegarkan...' : 'Sinkronkan'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettingsFocusSection('firebase');
+                    setIsSettingsOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 font-medium transition-colors cursor-pointer clay-btn-soft whitespace-nowrap"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  <span>Kelola</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={isSigningInGoogle}
+                onClick={handleSignInGoogle}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 disabled:opacity-60 text-white font-semibold shadow-xs transition-all cursor-pointer clay-btn-primary whitespace-nowrap"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>{isSigningInGoogle ? 'Menghubungkan...' : 'Hubungkan Live Cloud'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Role Notification Banner for Viewer or Lead */}
         {currentRole === 'viewer' && (
           <div className="bg-gradient-to-r from-sky-50/90 via-indigo-50/75 to-violet-50/85 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/80 dark:border-indigo-800/50 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 text-xs clay-surface">
@@ -1931,10 +2164,14 @@ export default function App() {
         firebaseUser={firebaseUser}
         cloudSyncStatus={cloudSyncStatus}
         lastSyncedAt={lastSyncedAt}
+        cloudError={cloudError}
+        onClearCloudError={() => setCloudError(null)}
         isSigningInGoogle={isSigningInGoogle}
+        isRefreshingCloud={isRefreshingCloud}
         onSignInGoogle={handleSignInGoogle}
         onSignOutGoogle={handleSignOutGoogle}
         onSyncLocalToCloud={handleSyncLocalToCloud}
+        onRefreshFromCloud={handleRefreshFromCloud}
         onAppInstalled={handleAppInstalled}
       />
 

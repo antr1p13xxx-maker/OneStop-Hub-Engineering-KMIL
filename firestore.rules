@@ -185,7 +185,11 @@ service cloud.firestore {
     // Collection: /workspaces/{workspaceId}
     // =========================================================
     match /workspaces/{workspaceId} {
-      allow get: if isVerifiedUser() && isValidId(workspaceId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow get: if isVerifiedUser() && isValidId(workspaceId) && (
+        isAdmin() ||
+        (resource == null && workspaceId == request.auth.uid) ||
+        (resource != null && existing().ownerId == request.auth.uid)
+      );
       allow list: if isVerifiedUser() && (existing().ownerId == request.auth.uid || isVerifiedAdminEmail());
       allow create: if isVerifiedUser() &&
         isValidId(workspaceId) &&
@@ -210,7 +214,11 @@ service cloud.firestore {
       // Subcollection: /workspaces/{workspaceId}/groups/{groupId}
       // -------------------------------------------------------
       match /groups/{groupId} {
-        allow get: if isVerifiedUser() && isValidId(workspaceId) && isValidId(groupId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow get: if isVerifiedUser() && isValidId(workspaceId) && isValidId(groupId) && (
+          isAdmin() ||
+          (resource == null && workspaceId == request.auth.uid) ||
+          (resource != null && existing().ownerId == request.auth.uid)
+        );
         allow list: if isVerifiedUser() && (existing().ownerId == request.auth.uid || isVerifiedAdminEmail());
         allow create: if isVerifiedUser() &&
           isValidId(workspaceId) &&
@@ -243,7 +251,11 @@ service cloud.firestore {
       // Subcollection: /workspaces/{workspaceId}/shortcuts/{shortcutId}
       // -------------------------------------------------------
       match /shortcuts/{shortcutId} {
-        allow get: if isVerifiedUser() && isValidId(workspaceId) && isValidId(shortcutId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow get: if isVerifiedUser() && isValidId(workspaceId) && isValidId(shortcutId) && (
+          isAdmin() ||
+          (resource == null && workspaceId == request.auth.uid) ||
+          (resource != null && existing().ownerId == request.auth.uid)
+        );
         allow list: if isVerifiedUser() && (existing().ownerId == request.auth.uid || isVerifiedAdminEmail());
         allow create: if isVerifiedUser() &&
           isValidId(workspaceId) &&
@@ -284,7 +296,11 @@ service cloud.firestore {
       // Subcollection: /workspaces/{workspaceId}/settings/config
       // -------------------------------------------------------
       match /settings/config {
-        allow get: if isVerifiedUser() && isValidId(workspaceId) && (existing().ownerId == request.auth.uid || isAdmin());
+        allow get: if isVerifiedUser() && isValidId(workspaceId) && (
+          isAdmin() ||
+          (resource == null && workspaceId == request.auth.uid) ||
+          (resource != null && existing().ownerId == request.auth.uid)
+        );
         allow list: if false;
         allow create: if isVerifiedUser() &&
           isValidId(workspaceId) &&

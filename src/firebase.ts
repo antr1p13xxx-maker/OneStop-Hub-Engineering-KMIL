@@ -49,18 +49,29 @@ export const FIREBASE_DATABASE_URL = firebaseConfig.databaseURL;
 export const FIREBASE_CONSOLE_URL = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/${firebaseConfig.firestoreDatabaseId}/data`;
 export const FIREBASE_UPGRADE_URL = `${FIREBASE_CONSOLE_URL}?openUpgradeDialog=true`;
 
-async function testConnection(): Promise<void> {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+export type ServerConnectivityState = 'online' | 'offline' | 'error';
+
+export async function checkFirestoreServerConnectivity(): Promise<ServerConnectivityState> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return 'offline';
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
+    return 'online';
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
+    const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    const code = (error as { code?: string })?.code?.toLowerCase() || '';
+    // Default-deny rule rejects /test/connection with permission-denied, which proves live server contact!
+    if (code === 'permission-denied' || msg.includes('missing or insufficient permissions')) {
+      return 'online';
     }
+    if (msg.includes('the client is offline') || code === 'unavailable') {
+      console.error('Please check your Firebase configuration.');
+      return 'offline';
+    }
+    return 'error';
   }
 }
 
-void testConnection();
+void checkFirestoreServerConnectivity();
 
 export async function resolveRedirectAuth(): Promise<User | null> {
   try {
