@@ -127,7 +127,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-7 h-7 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center overflow-hidden shrink-0">
                         {hasCustomPhoto ? (
                           <img
@@ -161,12 +161,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         )}
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                             {item.title}
                           </span>
-                          <span className="text-[11px] text-neutral-400">· {groupName}</span>
+                          <span className="text-[11px] text-neutral-400 shrink-0 truncate max-w-[120px]">· {groupName}</span>
                         </div>
                         <p className="text-[11px] text-neutral-400 font-mono truncate">{item.url}</p>
                       </div>
@@ -188,13 +188,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Footer info */}
-        <div className="px-4 py-2 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850 flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
-          <div className="flex items-center gap-3">
+        <div className="px-4 py-2 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850 flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span><kbd className="px-1 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 font-mono">↑↓</kbd> Navigasi</span>
             <span><kbd className="px-1 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 font-mono">↵</kbd> Luncurkan</span>
             <span><kbd className="px-1 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 font-mono">Esc</kbd> Tutup</span>
           </div>
-          <span className="tabular-nums font-mono">{filteredShortcuts.length} hasil</span>
+          <span className="tabular-nums font-mono shrink-0">{filteredShortcuts.length} hasil</span>
         </div>
       </div>
     </div>

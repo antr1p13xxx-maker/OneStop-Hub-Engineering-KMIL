@@ -1,26 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Search,
   LayoutGrid,
   List,
   FolderKanban,
   HardDrive,
-  Globe,
-  Cpu,
   Plus,
   Command,
-  Filter,
   CheckCircle2,
   X,
-  Info,
   ExternalLink,
-  Copy,
   Shield,
   ShieldCheck,
   Eye,
-  Lock,
   Sliders,
-  Grid3X3,
   Orbit,
   CloudAlert,
   Trash2,
@@ -40,7 +33,6 @@ import {
   saveStoredTheme,
   applyThemeWithTransition,
   hasUserSavedTheme,
-  getSystemTheme,
   getStoredViewMode,
   saveStoredViewMode,
   getStoredCardDensity,
@@ -68,6 +60,7 @@ import {
 } from './services/auth';
 import {
   auth,
+  resolveRedirectAuth,
   signInWithGoogle,
   signOutFirebase,
   FIREBASE_UPGRADE_URL,
@@ -89,12 +82,13 @@ import {
   savePreferencesToFirestore,
   saveCustomLogoToFirestore,
   replaceWorkspaceDataInFirestore,
-  isQuotaExceededError,
+  formatFirestoreErrorForUser,
   WorkspacePreferencesPayload,
 } from './services/firestoreSync';
-import { launchShortcut, copyToClipboard } from './utils/pathHelper';
+import { launchShortcut } from './utils/pathHelper';
 import { getGroupColorTheme } from './utils/colorTheme';
-import { Header } from './components/Header';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
+import { Header, CloudSyncStatus } from './components/Header';
 import { DirectoryInfoBanner } from './components/DirectoryInfoBanner';
 import { QuickDock } from './components/QuickDock';
 import { ShortcutCard } from './components/ShortcutCard';
@@ -139,9 +133,12 @@ export default function App() {
   }, [selectedGroupFilter]);
 
   // Firebase Auth & Cloud Sync State
+  const isOnline = useOnlineStatus();
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
   const [isSigningInGoogle, setIsSigningInGoogle] = useState<boolean>(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('local');
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [cloudError, setCloudError] = useState<{ message: string; isQuota?: boolean } | null>(null);
 
   // Modals
@@ -155,15 +152,55 @@ export default function App() {
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Toast notification
+  // Toast notification with unified timer cleanup
   const [toast, setToast] = useState<{ message: string; details?: string; isDirectory?: boolean } | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast(null);
+  }, []);
+
+  const showToast = useCallback(
+    (nextToast: { message: string; details?: string; isDirectory?: boolean }, durationMs = 4500) => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      setToast(nextToast);
+      toastTimerRef.current = window.setTimeout(() => {
+        setToast(null);
+        toastTimerRef.current = null;
+      }, durationMs);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // Permissions based on current role
   const permissions = useMemo(() => ROLE_PERMISSIONS[currentRole], [currentRole]);
 
+  // Precomputed lookup maps for O(1) card & filter rendering
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+  const groupShortcutCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    shortcuts.forEach((s) => {
+      counts.set(s.groupId, (counts.get(s.groupId) || 0) + 1);
+    });
+    return counts;
+  }, [shortcuts]);
+
   // Initialize
   useEffect(() => {
-    // Detect system theme or load saved user preference
     const initialTheme = getStoredTheme();
     setTheme(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
@@ -182,7 +219,6 @@ export default function App() {
     setCurrentRole(getStoredRole());
     setCustomLogo(getStoredCustomLogo());
 
-    // J.A.R.V.I.S. intro on first launch
     const introEnabled = isJarvisIntroEnabled();
     const audioEnabled = isJarvisAudioEnabled();
     setIsJarvisEnabled(introEnabled);
@@ -193,16 +229,39 @@ export default function App() {
       markJarvisIntroSeenSession();
     }
 
+    void resolveRedirectAuth().then((redirectUser) => {
+      if (redirectUser) {
+        showToast({
+          message: `Terhubung ke Google Firebase (${redirectUser.email})`,
+          details: 'Sinkronisasi real-time Firestore kini aktif untuk seluruh pintasan & pengaturan.',
+        });
+      }
+    });
+
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setIsAuthReady(true);
       if (!user) {
         setCloudError(null);
+        setCloudSyncStatus('local');
       }
     });
 
     return () => unsubAuth();
-  }, []);
+  }, [showToast]);
+
+  // Update sync indicator automatically on connectivity change
+  useEffect(() => {
+    if (!firebaseUser) {
+      setCloudSyncStatus('local');
+      return;
+    }
+    if (!isOnline) {
+      setCloudSyncStatus('offline');
+    } else if (!cloudError) {
+      setCloudSyncStatus((prev) => (prev === 'offline' ? 'synced' : prev));
+    }
+  }, [isOnline, firebaseUser, cloudError]);
 
   // Attach real-time Firestore listeners once Firebase Auth is ready & signed in
   useEffect(() => {
@@ -215,22 +274,15 @@ export default function App() {
 
     const handleSyncErr = (err: unknown) => {
       if (cancelled) return;
-      if (isQuotaExceededError(err)) {
-        setCloudError({
-          message:
-            'Kuota harian gratis Firestore telah terlampaui (Quota exceeded). Kuota akan direset keesokan harinya.',
-          isQuota: true,
-        });
-      } else {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal menyinkronkan data dengan Firebase Firestore.',
-        });
-      }
+      const formatted = formatFirestoreErrorForUser(err);
+      setCloudError(formatted);
+      setCloudSyncStatus('error');
     };
 
     const startSync = async () => {
       try {
         setCloudError(null);
+        setCloudSyncStatus(navigator.onLine ? 'connecting' : 'offline');
         await syncUserProfileAndWorkspace(firebaseUser);
         const migrated = await bootstrapInitialWorkspaceData(
           firebaseUser.uid,
@@ -256,6 +308,14 @@ export default function App() {
             if (cancelled) return;
             setGroups(cloudGroups);
             saveStoredGroups(cloudGroups);
+            if (
+              selectedGroupFilterRef.current !== 'all' &&
+              !cloudGroups.some((g) => g.id === selectedGroupFilterRef.current)
+            ) {
+              setSelectedGroupFilter('all');
+            }
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
           },
           handleSyncErr
         );
@@ -266,6 +326,8 @@ export default function App() {
             if (cancelled) return;
             setShortcuts(cloudShortcuts);
             saveStoredShortcuts(cloudShortcuts);
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
           },
           handleSyncErr
         );
@@ -302,12 +364,14 @@ export default function App() {
             if (selectedGroupFilterRef.current === 'all') {
               setViewMode(cloudSettings.viewMode);
             }
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
           },
           handleSyncErr
         );
 
         if (migrated) {
-          setToast({
+          showToast({
             message: 'Data Lokal Berhasil Diunggah ke Firebase Cloud ☁️',
             details: `Workspace Anda kini tersimpan aman di Firestore (${firebaseUser.email}).`,
           });
@@ -325,7 +389,7 @@ export default function App() {
       unsubShortcuts?.();
       unsubSettings?.();
     };
-  }, [isAuthReady, firebaseUser]);
+  }, [isAuthReady, firebaseUser, showToast]);
 
   // Sync dynamic favicon with custom logo photo (restores default /icon.svg when cleared)
   useEffect(() => {
@@ -381,14 +445,17 @@ export default function App() {
 
   const persistCloudPreferences = (overrides: Partial<WorkspacePreferencesPayload> = {}) => {
     if (!firebaseUser) return;
-    void savePreferencesToFirestore(firebaseUser.uid, getCurrentPreferences(overrides)).catch((err) => {
-      if (isQuotaExceededError(err)) {
-        setCloudError({
-          message: 'Kuota harian gratis Firestore terlampaui. Preferensi tetap tersimpan secara lokal.',
-          isQuota: true,
-        });
-      }
-    });
+    setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+    void savePreferencesToFirestore(firebaseUser.uid, getCurrentPreferences(overrides))
+      .then(() => {
+        setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+        setLastSyncedAt(Date.now());
+      })
+      .catch((err) => {
+        const formatted = formatFirestoreErrorForUser(err);
+        setCloudError(formatted);
+        setCloudSyncStatus('error');
+      });
   };
 
   // Google Sign-In / Sign-Out & Manual Cloud Sync
@@ -397,15 +464,25 @@ export default function App() {
     setCloudError(null);
     try {
       const user = await signInWithGoogle();
-      setToast({
-        message: `Terhubung ke Google Firebase (${user.email})`,
-        details: 'Sinkronisasi real-time Firestore kini aktif untuk seluruh pintasan & pengaturan di PC dan HP.',
-      });
+      if (user) {
+        showToast({
+          message: `Terhubung ke Google Firebase (${user.email})`,
+          details: 'Sinkronisasi real-time Firestore kini aktif untuk seluruh pintasan & pengaturan di PC dan HP.',
+        });
+      }
     } catch (err) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/popup-blocked') {
         setCloudError({
-          message: 'Jendela login Google diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.',
+          message: 'Jendela login Google diblokir browser. Izinkan pop-up untuk situs ini atau buka di tab penuh lalu coba lagi.',
+        });
+      } else if (code === 'auth/unauthorized-domain') {
+        setCloudError({
+          message: 'Domain ini belum diotorisasi di Firebase Authentication. Tambahkan domain di Firebase Console → Authentication → Settings → Authorized domains.',
+        });
+      } else if (code === 'auth/operation-not-supported-in-this-environment') {
+        setCloudError({
+          message: 'Login Google di lingkungan pratinjau tersemat membutuhkan tab browser penuh. Buka aplikasi di tab baru lalu coba lagi.',
         });
       } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
         setCloudError({
@@ -423,14 +500,14 @@ export default function App() {
   const handleSignOutGoogle = async () => {
     try {
       await signOutFirebase();
-      setToast({
+      setCloudSyncStatus('local');
+      setLastSyncedAt(null);
+      showToast({
         message: 'Keluar dari Akun Google Firebase',
         details: 'Aplikasi beralih ke penyimpanan lokal browser.',
       });
     } catch (err) {
-      setCloudError({
-        message: err instanceof Error ? err.message : 'Gagal keluar dari akun Google.',
-      });
+      setCloudError(formatFirestoreErrorForUser(err));
     }
   };
 
@@ -438,18 +515,19 @@ export default function App() {
     if (!firebaseUser) return;
     try {
       setCloudError(null);
+      setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
       await replaceWorkspaceDataInFirestore(firebaseUser.uid, groups, shortcuts);
       await savePreferencesToFirestore(firebaseUser.uid, getCurrentPreferences());
       await saveCustomLogoToFirestore(firebaseUser.uid, customLogo, getCurrentPreferences());
-      setToast({
+      setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+      setLastSyncedAt(Date.now());
+      showToast({
         message: 'Sinkronisasi Paksa ke Firebase Berhasil ☁️',
         details: `${shortcuts.length} pintasan dan ${groups.length} grup telah diperbarui di Firestore.`,
       });
     } catch (err) {
-      setCloudError({
-        message: err instanceof Error ? err.message : 'Gagal mengunggah data lokal ke Firestore.',
-        isQuota: isQuotaExceededError(err),
-      });
+      setCloudError(formatFirestoreErrorForUser(err));
+      setCloudSyncStatus('error');
     }
   };
 
@@ -460,7 +538,7 @@ export default function App() {
     saveStoredTheme(nextTheme);
     applyThemeWithTransition(nextTheme);
     persistCloudPreferences({ theme: nextTheme });
-    setToast({
+    showToast({
       message: `Beralih ke ${nextTheme === 'dark' ? 'Mode Gelap 🌙' : 'Mode Terang ☀️'}`,
       details: 'Preferensi tema disimpan dengan transisi visual halus.',
     });
@@ -472,7 +550,7 @@ export default function App() {
     saveStoredUiStyle(nextStyle);
     applyUiStyleWithTransition(nextStyle);
     persistCloudPreferences({ uiStyle: nextStyle });
-    setToast({
+    showToast({
       message:
         nextStyle === 'claymorphism'
           ? 'Gaya UI Claymorphism 3D Diaktifkan'
@@ -490,18 +568,18 @@ export default function App() {
     persistCloudPreferences({ sortBy: nextSort });
   };
 
-  const handleAppInstalled = () => {
-    setToast({
+  const handleAppInstalled = useCallback(() => {
+    showToast({
       message: 'OneStop Hub Berhasil Diinstall!',
       details: 'Aplikasi kini tersedia di desktop PC atau layar utama HP Anda.',
     });
-  };
+  }, [showToast]);
 
   // Change user role
   const handleRoleChanged = (newRole: UserRole) => {
     setCurrentRole(newRole);
     saveStoredRole(newRole);
-    setToast({
+    showToast({
       message: `Peran berhasil diubah: ${ROLE_CONFIGS[newRole].name}`,
       details: ROLE_CONFIGS[newRole].description,
     });
@@ -512,7 +590,7 @@ export default function App() {
     setCardDensity(newDensity);
     saveStoredCardDensity(newDensity);
     persistCloudPreferences({ cardDensity: newDensity });
-    setToast({
+    showToast({
       message: `Densitas kartu: ${
         newDensity === 'small' ? 'Kompak (Small)' : newDensity === 'large' ? 'Leluasa (Large)' : 'Standar (Medium)'
       }`,
@@ -526,15 +604,15 @@ export default function App() {
   };
 
   // J.A.R.V.I.S. Handlers
-  const handleCompleteJarvisIntro = () => {
+  const handleCompleteJarvisIntro = useCallback(() => {
     setShowJarvisIntro(false);
-  };
+  }, []);
 
   const handleToggleJarvisEnabled = (enabled: boolean) => {
     setIsJarvisEnabled(enabled);
     setJarvisIntroEnabled(enabled);
     persistCloudPreferences({ jarvisIntroEnabled: enabled });
-    setToast({
+    showToast({
       message: enabled ? 'Animasi Pembuka J.A.R.V.I.S. Diaktifkan ⚡' : 'Animasi J.A.R.V.I.S. Dinonaktifkan',
       details: enabled ? 'Intro akan diputar saat membuka aplikasi.' : 'Aplikasi akan langsung membuka dasbor.',
     });
@@ -544,7 +622,7 @@ export default function App() {
     setIsJarvisAudio(enabled);
     setJarvisAudioEnabled(enabled);
     persistCloudPreferences({ jarvisAudioEnabled: enabled });
-    setToast({
+    showToast({
       message: enabled ? 'Audio J.A.R.V.I.S. Diaktifkan 🔊' : 'Audio J.A.R.V.I.S. Dihilangkan 🔇',
     });
   };
@@ -559,23 +637,25 @@ export default function App() {
       saveStoredCustomLogo(logo);
       setCustomLogo(logo);
       if (firebaseUser) {
-        void saveCustomLogoToFirestore(firebaseUser.uid, logo, getCurrentPreferences({ customLogo: logo })).catch(
-          (err) => {
-            setCloudError({
-              message: err instanceof Error ? err.message : 'Gagal menyimpan foto logo ke Firebase Firestore.',
-              isQuota: isQuotaExceededError(err),
-            });
-          }
-        );
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void saveCustomLogoToFirestore(firebaseUser.uid, logo, getCurrentPreferences({ customLogo: logo }))
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
+          });
       }
-      setToast({
+      showToast({
         message: logo ? 'Foto Logo OneStop Hub Engineering Diperbarui' : 'Logo Dikembalikan ke Ikon Bawaan',
         details: logo
           ? 'Logo baru kini tampil pada Header, tab browser, dan J.A.R.V.I.S. HUD.'
           : 'Ikon standar aplikasi telah dipulihkan.',
       });
     } catch (err) {
-      setToast({
+      showToast({
         message: 'Gagal Menyimpan Foto Logo',
         details: err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan ke penyimpanan lokal.',
       });
@@ -583,19 +663,23 @@ export default function App() {
   };
 
   // Selecting a specific group automatically activates the circular Orbit Hub display
-  const handleSelectGroupFilter = (groupId: string) => {
-    setSelectedGroupFilter(groupId);
-    if (groupId !== 'all') {
-      if (viewMode !== 'orbit') {
-        setPreviousViewMode(viewMode);
-        setViewMode('orbit');
+  const handleSelectGroupFilter = useCallback(
+    (groupId: string) => {
+      setSelectedGroupFilter(groupId);
+      if (groupId !== 'all') {
+        setViewMode((prev) => {
+          if (prev !== 'orbit') {
+            setPreviousViewMode(prev);
+          }
+          return 'orbit';
+        });
+      } else {
+        const savedMode = getStoredViewMode();
+        setViewMode(savedMode === 'orbit' ? 'orbit' : previousViewMode === 'orbit' ? 'grid' : previousViewMode);
       }
-    } else {
-      // Returning to "Semua Grup" restores previous view unless user explicitly saved orbit
-      const savedMode = getStoredViewMode();
-      setViewMode(savedMode === 'orbit' ? 'orbit' : previousViewMode === 'orbit' ? 'grid' : previousViewMode);
-    }
-  };
+    },
+    [previousViewMode]
+  );
 
   // Keyboard shortcut listener for Command Palette (Ctrl+K or /)
   useEffect(() => {
@@ -612,104 +696,117 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Save shortcuts
-  const updateShortcuts = (newShortcuts: ShortcutItem[]) => {
-    setShortcuts(newShortcuts);
-    saveStoredShortcuts(newShortcuts);
-  };
-
   // Save groups
   const updateGroups = (newGroups: ShortcutGroup[]) => {
     const prevGroups = groups;
     setGroups(newGroups);
     saveStoredGroups(newGroups);
     if (firebaseUser) {
-      void syncGroupsToFirestore(firebaseUser.uid, prevGroups, newGroups).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal menyinkronkan grup ke Firebase.',
-          isQuota: isQuotaExceededError(err),
+      setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+      void syncGroupsToFirestore(firebaseUser.uid, prevGroups, newGroups)
+        .then(() => {
+          setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+          setLastSyncedAt(Date.now());
+        })
+        .catch((err) => {
+          setCloudError(formatFirestoreErrorForUser(err));
+          setCloudSyncStatus('error');
         });
-      });
     }
   };
 
   // Launch shortcut
-  const handleLaunch = async (shortcut: ShortcutItem) => {
-    const nextClicks = shortcut.clickCount + 1;
-    const openedAt = Date.now();
-    // Increment click count & update lastOpened
-    const updated = shortcuts.map((s) =>
-      s.id === shortcut.id
-        ? { ...s, clickCount: nextClicks, lastOpened: openedAt }
-        : s
-    );
-    updateShortcuts(updated);
+  const handleLaunch = useCallback(
+    async (shortcut: ShortcutItem) => {
+      const nextClicks = shortcut.clickCount + 1;
+      const openedAt = Date.now();
+      setShortcuts((prev) => {
+        const updated = prev.map((s) =>
+          s.id === shortcut.id ? { ...s, clickCount: nextClicks, lastOpened: openedAt } : s
+        );
+        saveStoredShortcuts(updated);
+        return updated;
+      });
 
-    if (firebaseUser) {
-      void recordShortcutLaunchInFirestore(firebaseUser.uid, shortcut.id, nextClicks, openedAt).catch((err) => {
-        if (isQuotaExceededError(err)) {
-          setCloudError({
-            message: 'Kuota harian gratis Firestore telah terlampaui.',
-            isQuota: true,
+      if (firebaseUser) {
+        void recordShortcutLaunchInFirestore(firebaseUser.uid, shortcut.id, nextClicks, openedAt)
+          .then(() => {
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            const formatted = formatFirestoreErrorForUser(err);
+            if (formatted.isQuota) {
+              setCloudError(formatted);
+              setCloudSyncStatus('error');
+            }
           });
-        }
-      });
-    }
+      }
 
-    const result = await launchShortcut(shortcut.url, shortcut.type);
+      const result = await launchShortcut(shortcut.url, shortcut.type);
 
-    if (result.actionTaken === 'copied_directory') {
-      setToast({
-        message: 'Path Direktori Disalin ke Clipboard!',
-        details: `${shortcut.url} — Tekan Win + R lalu tempel untuk langsung membuka folder di Windows Explorer.`,
-        isDirectory: true,
-      });
-    } else {
-      setToast({
-        message: `Membuka "${shortcut.title}"...`,
-        details: shortcut.url,
-        isDirectory: false,
-      });
-    }
+      if (result.actionTaken === 'copied_directory') {
+        showToast(
+          {
+            message: 'Path Direktori Disalin ke Clipboard!',
+            details: `${shortcut.url} — Tekan Win + R lalu tempel untuk langsung membuka folder di Windows Explorer.`,
+            isDirectory: true,
+          },
+          5000
+        );
+      } else {
+        showToast(
+          {
+            message: `Membuka "${shortcut.title}"...`,
+            details: shortcut.url,
+            isDirectory: false,
+          },
+          4000
+        );
+      }
+    },
+    [firebaseUser, showToast]
+  );
 
-    setTimeout(() => {
-      setToast(null);
-    }, 5000);
-  };
+  // Open edit shortcut modal
+  const handleEditShortcut = useCallback((s: ShortcutItem) => {
+    setEditingShortcut(s);
+    setIsAddModalOpen(true);
+  }, []);
 
   // Save shortcut (Add / Edit)
   const handleSaveShortcut = (
     data: Partial<ShortcutItem> & { title: string; url: string; groupId: string }
   ) => {
     if (data.id) {
-      // Edit
-      let editedItem: ShortcutItem | null = null;
-      const updated = shortcuts.map((s) => {
-        if (s.id !== data.id) return s;
-        editedItem = {
-          ...s,
-          title: data.title,
-          url: data.url,
-          type: data.type || s.type,
-          groupId: data.groupId,
-          description: data.description,
-          iconType: data.iconType || s.iconType,
-          iconValue: data.iconValue || s.iconValue,
-          isPinned: data.isPinned !== undefined ? data.isPinned : s.isPinned,
-        };
-        return editedItem;
-      });
-      updateShortcuts(updated);
-      if (firebaseUser && editedItem) {
-        void updateShortcutInFirestore(firebaseUser.uid, editedItem).catch((err) => {
-          setCloudError({
-            message: err instanceof Error ? err.message : 'Gagal memperbarui pintasan di Firebase.',
-            isQuota: isQuotaExceededError(err),
+      const target = shortcuts.find((s) => s.id === data.id);
+      if (!target) return;
+      const editedItem: ShortcutItem = {
+        ...target,
+        title: data.title,
+        url: data.url,
+        type: data.type || target.type,
+        groupId: data.groupId,
+        description: data.description,
+        iconType: data.iconType || target.iconType,
+        iconValue: data.iconValue || target.iconValue,
+        isPinned: data.isPinned !== undefined ? data.isPinned : target.isPinned,
+      };
+      const updated = shortcuts.map((s) => (s.id === data.id ? editedItem : s));
+      setShortcuts(updated);
+      saveStoredShortcuts(updated);
+      if (firebaseUser) {
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void updateShortcutInFirestore(firebaseUser.uid, editedItem)
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
           });
-        });
       }
     } else {
-      // Add
       const newShortcut: ShortcutItem = {
         id: `sc-${Date.now()}`,
         title: data.title,
@@ -723,68 +820,105 @@ export default function App() {
         clickCount: 0,
         createdAt: Date.now(),
       };
-      updateShortcuts([newShortcut, ...shortcuts]);
+      const updated = [newShortcut, ...shortcuts];
+      setShortcuts(updated);
+      saveStoredShortcuts(updated);
       if (firebaseUser) {
-        void createShortcutInFirestore(firebaseUser.uid, newShortcut).catch((err) => {
-          setCloudError({
-            message: err instanceof Error ? err.message : 'Gagal menambah pintasan ke Firebase.',
-            isQuota: isQuotaExceededError(err),
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void createShortcutInFirestore(firebaseUser.uid, newShortcut)
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
           });
-        });
       }
     }
   };
 
   // Delete shortcut
-  const handleDeleteShortcut = (id: string) => {
-    const updated = shortcuts.filter((s) => s.id !== id);
-    updateShortcuts(updated);
-    if (firebaseUser) {
-      void deleteShortcutFromFirestore(firebaseUser.uid, id).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal menghapus pintasan di Firebase.',
-          isQuota: isQuotaExceededError(err),
-        });
+  const handleDeleteShortcut = useCallback(
+    (id: string) => {
+      setShortcuts((prev) => {
+        const updated = prev.filter((s) => s.id !== id);
+        saveStoredShortcuts(updated);
+        return updated;
       });
-    }
-  };
+      if (firebaseUser) {
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void deleteShortcutFromFirestore(firebaseUser.uid, id)
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
+          });
+      }
+    },
+    [firebaseUser, isOnline]
+  );
 
   // Toggle Pin
-  const handleTogglePin = (shortcut: ShortcutItem) => {
-    const nextPinned = !shortcut.isPinned;
-    const updated = shortcuts.map((s) =>
-      s.id === shortcut.id ? { ...s, isPinned: nextPinned } : s
-    );
-    updateShortcuts(updated);
-    if (firebaseUser) {
-      void toggleShortcutPinInFirestore(firebaseUser.uid, shortcut.id, nextPinned).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal mengubah status pin di Firebase.',
-          isQuota: isQuotaExceededError(err),
-        });
+  const handleTogglePin = useCallback(
+    (shortcut: ShortcutItem) => {
+      const nextPinned = !shortcut.isPinned;
+      setShortcuts((prev) => {
+        const updated = prev.map((s) =>
+          s.id === shortcut.id ? { ...s, isPinned: nextPinned } : s
+        );
+        saveStoredShortcuts(updated);
+        return updated;
       });
-    }
-  };
+      if (firebaseUser) {
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void toggleShortcutPinInFirestore(firebaseUser.uid, shortcut.id, nextPinned)
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
+          });
+      }
+    },
+    [firebaseUser, isOnline]
+  );
 
   // Duplicate shortcut
-  const handleDuplicate = (shortcut: ShortcutItem) => {
-    const duplicated: ShortcutItem = {
-      ...shortcut,
-      id: `sc-${Date.now()}`,
-      title: `${shortcut.title} (Salinan)`,
-      clickCount: 0,
-      createdAt: Date.now(),
-    };
-    updateShortcuts([duplicated, ...shortcuts]);
-    if (firebaseUser) {
-      void createShortcutInFirestore(firebaseUser.uid, duplicated).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal menduplikasi pintasan di Firebase.',
-          isQuota: isQuotaExceededError(err),
-        });
+  const handleDuplicate = useCallback(
+    (shortcut: ShortcutItem) => {
+      const duplicated: ShortcutItem = {
+        ...shortcut,
+        id: `sc-${Date.now()}`,
+        title: `${shortcut.title} (Salinan)`,
+        clickCount: 0,
+        createdAt: Date.now(),
+      };
+      setShortcuts((prev) => {
+        const updated = [duplicated, ...prev];
+        saveStoredShortcuts(updated);
+        return updated;
       });
-    }
-  };
+      if (firebaseUser) {
+        setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+        void createShortcutInFirestore(firebaseUser.uid, duplicated)
+          .then(() => {
+            setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+            setLastSyncedAt(Date.now());
+          })
+          .catch((err) => {
+            setCloudError(formatFirestoreErrorForUser(err));
+            setCloudSyncStatus('error');
+          });
+      }
+    },
+    [firebaseUser, isOnline]
+  );
 
   // Reassign shortcuts when group is deleted
   const handleReassignShortcuts = (fromGroupId: string, toGroupId: string) => {
@@ -792,14 +926,19 @@ export default function App() {
     const updated = shortcuts.map((s) =>
       s.groupId === fromGroupId ? { ...s, groupId: toGroupId } : s
     );
-    updateShortcuts(updated);
+    setShortcuts(updated);
+    saveStoredShortcuts(updated);
     if (firebaseUser && affectedIds.length > 0) {
-      void reassignShortcutsGroupInFirestore(firebaseUser.uid, affectedIds, toGroupId).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal memindahkan pintasan di Firebase.',
-          isQuota: isQuotaExceededError(err),
+      setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+      void reassignShortcutsGroupInFirestore(firebaseUser.uid, affectedIds, toGroupId)
+        .then(() => {
+          setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+          setLastSyncedAt(Date.now());
+        })
+        .catch((err) => {
+          setCloudError(formatFirestoreErrorForUser(err));
+          setCloudSyncStatus('error');
         });
-      });
     }
   };
 
@@ -809,7 +948,7 @@ export default function App() {
     options: { mode: 'reassign' | 'purge'; targetGroupId?: string }
   ) => {
     if (groups.length <= 1) {
-      setToast({
+      showToast({
         message: 'Tidak Dapat Menghapus Grup Terakhir',
         details: 'Minimal harus ada satu grup kategori di dalam dasbor.',
       });
@@ -829,10 +968,12 @@ export default function App() {
       const nextShortcuts = shortcuts.map((s) =>
         s.groupId === groupId ? { ...s, groupId: targetGroupId } : s
       );
-      updateShortcuts(nextShortcuts);
+      setShortcuts(nextShortcuts);
+      saveStoredShortcuts(nextShortcuts);
     } else if (options.mode === 'purge') {
       const nextShortcuts = shortcuts.filter((s) => s.groupId !== groupId);
-      updateShortcuts(nextShortcuts);
+      setShortcuts(nextShortcuts);
+      saveStoredShortcuts(nextShortcuts);
     }
 
     const nextGroups = groups
@@ -846,22 +987,26 @@ export default function App() {
     }
 
     if (firebaseUser) {
+      setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
       void deleteGroupInFirestore(
         firebaseUser.uid,
         groupId,
         options.mode,
         affectedIds,
         targetGroupId
-      ).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal menghapus grup di Firebase.',
-          isQuota: isQuotaExceededError(err),
+      )
+        .then(() => {
+          setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+          setLastSyncedAt(Date.now());
+        })
+        .catch((err) => {
+          setCloudError(formatFirestoreErrorForUser(err));
+          setCloudSyncStatus('error');
         });
-      });
     }
 
     const targetGroupName = groups.find((g) => g.id === targetGroupId)?.name;
-    setToast({
+    showToast({
       message: `Grup "${deletedGroup?.name || 'Kategori'}" Dihapus`,
       details:
         affectedIds.length === 0
@@ -872,10 +1017,10 @@ export default function App() {
     });
   };
 
-  const handleOpenDeleteGroupModal = (groupId: string) => {
+  const handleOpenDeleteGroupModal = useCallback((groupId: string) => {
     setDeleteTargetGroupId(groupId);
     setIsManageGroupsOpen(true);
-  };
+  }, []);
 
   // Reset to default
   const handleResetDefault = () => {
@@ -885,12 +1030,16 @@ export default function App() {
     setShortcuts(freshShortcuts);
     setGroups(freshGroups);
     if (firebaseUser) {
-      void replaceWorkspaceDataInFirestore(firebaseUser.uid, DEFAULT_GROUPS, DEFAULT_SHORTCUTS).catch((err) => {
-        setCloudError({
-          message: err instanceof Error ? err.message : 'Gagal mereset database Firebase ke default.',
-          isQuota: isQuotaExceededError(err),
+      setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+      void replaceWorkspaceDataInFirestore(firebaseUser.uid, DEFAULT_GROUPS, DEFAULT_SHORTCUTS)
+        .then(() => {
+          setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+          setLastSyncedAt(Date.now());
+        })
+        .catch((err) => {
+          setCloudError(formatFirestoreErrorForUser(err));
+          setCloudSyncStatus('error');
         });
-      });
     }
   };
 
@@ -921,7 +1070,7 @@ export default function App() {
         const matchTitle = item.title.toLowerCase().includes(q);
         const matchUrl = item.url.toLowerCase().includes(q);
         const matchDesc = item.description?.toLowerCase().includes(q);
-        const groupName = groups.find((g) => g.id === item.groupId)?.name.toLowerCase() || '';
+        const groupName = groupById.get(item.groupId)?.name.toLowerCase() || '';
         const matchGroup = groupName.includes(q);
         const matchTag = item.tags?.some((t) => t.toLowerCase().includes(q));
 
@@ -944,7 +1093,7 @@ export default function App() {
         return a.title.localeCompare(b.title);
       }
     });
-  }, [shortcuts, groups, selectedGroupFilter, selectedTypeFilter, searchQuery, sortBy]);
+  }, [shortcuts, groupById, selectedGroupFilter, selectedTypeFilter, searchQuery, sortBy]);
 
   // Pinned items for Quick Dock
   const pinnedItems = useMemo(() => {
@@ -1003,6 +1152,7 @@ export default function App() {
         onSelectGroupFilter={handleSelectGroupFilter}
         activeFilterGroup={selectedGroupFilter}
         firebaseUser={firebaseUser}
+        cloudSyncStatus={cloudSyncStatus}
         isSigningInGoogle={isSigningInGoogle}
         onSignInGoogle={handleSignInGoogle}
         onOpenCloudSettings={() => {
@@ -1014,13 +1164,16 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Offline PWA Connectivity Banner (inline so it never overlaps cards or footer) */}
+        <OfflineIndicator />
+
         {/* Firebase Cloud / Quota Error Banner */}
         {cloudError && (
           <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 rounded-xl p-3 sm:p-3.5 flex items-start justify-between gap-3 text-xs">
-            <div className="flex items-start gap-2.5 text-rose-800 dark:text-rose-200">
+            <div className="flex items-start gap-2.5 text-rose-800 dark:text-rose-200 min-w-0">
               <CloudAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">{cloudError.message}</p>
+              <div className="min-w-0">
+                <p className="font-semibold break-words">{cloudError.message}</p>
                 {cloudError.isQuota && (
                   <a
                     href={FIREBASE_UPGRADE_URL}
@@ -1037,7 +1190,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setCloudError(null)}
-              className="p-1 text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 rounded"
+              className="p-1 text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 rounded shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1045,16 +1198,16 @@ export default function App() {
         )}
         {/* Role Notification Banner for Viewer or Lead */}
         {currentRole === 'viewer' && (
-          <div className="bg-gradient-to-r from-sky-50/90 via-indigo-50/75 to-violet-50/85 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/80 dark:border-indigo-800/50 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-              <Eye className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+          <div className="bg-gradient-to-r from-sky-50/90 via-indigo-50/75 to-violet-50/85 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-violet-950/30 border border-indigo-200/80 dark:border-indigo-800/50 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 text-xs clay-surface">
+            <div className="flex items-start sm:items-center gap-2 text-slate-700 dark:text-slate-200 min-w-0">
+              <Eye className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 <strong>Akses Viewer (Hanya Lihat):</strong> Anda dapat mencari, membuka pintasan, dan menyalin path folder. Tidak dapat menambah atau menghapus data.
               </span>
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg shrink-0 transition-all shadow-xs clay-btn-primary"
+              className="px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg shrink-0 transition-all shadow-xs whitespace-nowrap clay-btn-primary"
             >
               Masuk (Lead/Manager)
             </button>
@@ -1062,16 +1215,16 @@ export default function App() {
         )}
 
         {currentRole === 'lead' && (
-          <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-rose-50/60 dark:from-amber-950/35 dark:via-orange-950/25 dark:to-rose-950/20 border border-amber-200/90 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex items-center justify-between gap-3 text-xs clay-surface">
-            <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
-              <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-rose-50/60 dark:from-amber-950/35 dark:via-orange-950/25 dark:to-rose-950/20 border border-amber-200/90 dark:border-amber-800/60 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 text-xs clay-surface">
+            <div className="flex items-start sm:items-center gap-2 text-amber-900 dark:text-amber-200 min-w-0">
+              <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 <strong>Akses Lead Engineering:</strong> Diizinkan menambah dan mengedit pintasan/grup, <em>tetapi fitur hapus dinonaktifkan</em>.
               </span>
             </div>
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="px-2.5 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-100/90 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors clay-btn-soft"
+              className="px-2.5 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200 bg-amber-100/90 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/60 rounded-lg shrink-0 transition-colors whitespace-nowrap clay-btn-soft"
             >
               Ganti Peran
             </button>
@@ -1091,7 +1244,7 @@ export default function App() {
               </div>
             </div>
             <button
-              onClick={() => setToast(null)}
+              onClick={dismissToast}
               className="p-1 text-white/80 hover:text-white rounded"
             >
               <X className="w-4 h-4" />
@@ -1120,24 +1273,36 @@ export default function App() {
         <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-xs clay-surface transition-colors space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Search Input with Ctrl+K trigger */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari pintasan web, alamat Drive D:, atau catatan..."
-                className="w-full pl-9 pr-24 py-2 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 clay-inset transition-all"
+                className={`w-full pl-9 ${searchQuery ? 'pr-16 sm:pr-24' : 'pr-4 sm:pr-16'} py-2 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 clay-inset transition-all`}
               />
-              <button
-                type="button"
-                onClick={() => setIsCommandPaletteOpen(true)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-[10px] font-mono text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-                title="Buka Command Palette"
-              >
-                <Command className="w-3 h-3" />
-                <span>K</span>
-              </button>
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Bersihkan pencarian"
+                    className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 rounded transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsCommandPaletteOpen(true)}
+                  className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-[10px] font-mono text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+                  title="Buka Command Palette"
+                >
+                  <Command className="w-3 h-3" />
+                  <span>K</span>
+                </button>
+              </div>
             </div>
 
             {/* View Mode & Sort Switches */}
@@ -1315,7 +1480,7 @@ export default function App() {
             </button>
 
             {groups.map((group) => {
-              const count = shortcuts.filter((s) => s.groupId === group.id).length;
+              const count = groupShortcutCounts.get(group.id) || 0;
               const isSelected = selectedGroupFilter === group.id;
               const colorTheme = getGroupColorTheme(group.color);
               return (
@@ -1438,10 +1603,7 @@ export default function App() {
             canDeleteGroup={permissions.canDeleteGroup}
             onRequestDeleteGroup={handleOpenDeleteGroupModal}
             onLaunch={handleLaunch}
-            onEdit={(s) => {
-              setEditingShortcut(s);
-              setIsAddModalOpen(true);
-            }}
+            onEdit={handleEditShortcut}
             onDelete={handleDeleteShortcut}
             onTogglePin={handleTogglePin}
             onAddInGroup={(gId) =>
@@ -1472,8 +1634,8 @@ export default function App() {
                     className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 sm:p-5 shadow-xs clay-surface transition-colors"
                   >
                     {/* Group Header */}
-                    <div className={`flex items-center justify-between px-3 py-2.5 -mx-1 mb-4 rounded-xl border-b border-neutral-100 dark:border-neutral-800 ${colorTheme.sectionGlow}`}>
-                      <div className="flex items-center gap-3">
+                    <div className={`flex items-start sm:items-center justify-between gap-3 px-3 py-2.5 -mx-1 mb-4 rounded-xl border-b border-neutral-100 dark:border-neutral-800 ${colorTheme.sectionGlow}`}>
+                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                         <div className={`w-9 h-9 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 clay-icon-well ${isImageIcon(group.icon) ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700' : colorTheme.iconBg}`}>
                           {isImageIcon(group.icon) ? (
                             <img src={group.icon} alt={group.name} className="w-full h-full object-cover" />
@@ -1481,17 +1643,17 @@ export default function App() {
                             <DynamicIcon name={group.icon} className={`w-4 h-4 ${colorTheme.iconText}`} />
                           )}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <h2 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 break-words">
                               {group.name}
                             </h2>
-                            <span className={`text-xs tabular-nums font-mono font-medium ${colorTheme.text}`}>
+                            <span className={`text-xs tabular-nums font-mono font-medium whitespace-nowrap ${colorTheme.text}`}>
                               · {groupItems.length} pintasan
                             </span>
                           </div>
                           {group.description && (
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-2">
                               {group.description}
                             </p>
                           )}
@@ -1503,7 +1665,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleOpenAddWithGroup(group.id, group.id.includes('drive') ? 'directory' : 'web')}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors whitespace-nowrap"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Tambah ke Grup Ini</span>
@@ -1514,7 +1676,7 @@ export default function App() {
                             type="button"
                             onClick={() => handleOpenDeleteGroupModal(group.id)}
                             title={`Hapus grup ${group.name}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors whitespace-nowrap"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Hapus Grup</span>
@@ -1539,10 +1701,7 @@ export default function App() {
                             canEditShortcut={permissions.canEditShortcut}
                             canDeleteShortcut={permissions.canDeleteShortcut}
                             onLaunch={handleLaunch}
-                            onEdit={(s) => {
-                              setEditingShortcut(s);
-                              setIsAddModalOpen(true);
-                            }}
+                            onEdit={handleEditShortcut}
                             onDelete={handleDeleteShortcut}
                             onTogglePin={handleTogglePin}
                             onDuplicate={handleDuplicate}
@@ -1556,17 +1715,17 @@ export default function App() {
           </div>
         ) : viewMode === 'list' ? (
           /* View Mode: High-density List Table */
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-xs clay-surface">
-            <div className="px-4 py-3 bg-gradient-to-r from-indigo-50/75 via-sky-50/45 to-fuchsia-50/40 dark:from-indigo-950/35 dark:via-neutral-800/60 dark:to-fuchsia-950/25 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-              <div className="flex-1 min-w-[240px]">Nama Layanan & Kategori</div>
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xs clay-surface">
+            <div className="px-4 py-3 rounded-t-xl bg-gradient-to-r from-indigo-50/75 via-sky-50/45 to-fuchsia-50/40 dark:from-indigo-950/35 dark:via-neutral-800/60 dark:to-fuchsia-950/25 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-3 sm:gap-4 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+              <div className="flex-1 min-w-0">Nama Layanan & Kategori</div>
               <div className="hidden md:block flex-1 min-w-[200px]">URL / Alamat Direktori</div>
               <div className="hidden lg:block flex-1 min-w-[180px]">Deskripsi</div>
-              <div className="w-16 text-right">Penggunaan</div>
-              <div className="w-24 text-right">Aksi</div>
+              <div className="hidden sm:block w-16 text-right shrink-0">Penggunaan</div>
+              <div className="w-24 text-right shrink-0">Aksi</div>
             </div>
             <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {filteredShortcuts.map((item) => {
-                const group = groups.find((g) => g.id === item.groupId);
+                const group = groupById.get(item.groupId);
                 return (
                   <ShortcutListItem
                     key={item.id}
@@ -1575,10 +1734,7 @@ export default function App() {
                     canEditShortcut={permissions.canEditShortcut}
                     canDeleteShortcut={permissions.canDeleteShortcut}
                     onLaunch={handleLaunch}
-                    onEdit={(s) => {
-                      setEditingShortcut(s);
-                      setIsAddModalOpen(true);
-                    }}
+                    onEdit={handleEditShortcut}
                     onDelete={handleDeleteShortcut}
                     onTogglePin={handleTogglePin}
                   />
@@ -1590,7 +1746,7 @@ export default function App() {
           /* View Mode: Modern Responsive Grid with dynamic density */
           <div className={gridLayoutClass}>
             {filteredShortcuts.map((item) => {
-              const group = groups.find((g) => g.id === item.groupId);
+              const group = groupById.get(item.groupId);
               return (
                 <ShortcutCard
                   key={item.id}
@@ -1600,10 +1756,7 @@ export default function App() {
                   canEditShortcut={permissions.canEditShortcut}
                   canDeleteShortcut={permissions.canDeleteShortcut}
                   onLaunch={handleLaunch}
-                  onEdit={(s) => {
-                    setEditingShortcut(s);
-                    setIsAddModalOpen(true);
-                  }}
+                  onEdit={handleEditShortcut}
                   onDelete={handleDeleteShortcut}
                   onTogglePin={handleTogglePin}
                   onDuplicate={handleDuplicate}
@@ -1616,23 +1769,23 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 py-4 clay-footer transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-          <div className="flex items-center gap-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1">
             <span className="font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent">
               OneStop Hub Engineering
             </span>
             <span aria-hidden="true">·</span>
-            <span className="tabular-nums font-mono">{stats.total} Total Pintasan</span>
+            <span className="tabular-nums font-mono whitespace-nowrap">{stats.total} Total Pintasan</span>
             <span aria-hidden="true">·</span>
-            <span className="tabular-nums font-mono">{stats.directoryCount} Direktori Drive</span>
+            <span className="tabular-nums font-mono whitespace-nowrap">{stats.directoryCount} Direktori Drive</span>
             <span aria-hidden="true">·</span>
-            <span className="tabular-nums font-mono">{stats.totalClicks} Total Akses</span>
+            <span className="tabular-nums font-mono whitespace-nowrap">{stats.totalClicks} Total Akses</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-4 gap-y-1.5">
             <button
               onClick={() => setIsRoleSwitchOpen(true)}
-              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors font-medium text-neutral-600 dark:text-neutral-300"
+              className="flex items-center gap-1.5 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors font-medium text-neutral-600 dark:text-neutral-300 whitespace-nowrap"
             >
               {currentRole === 'viewer' ? (
                 <Eye className="w-3.5 h-3.5 text-neutral-500" />
@@ -1645,19 +1798,19 @@ export default function App() {
             </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
+              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors whitespace-nowrap"
             >
               Pengaturan Tampilan
             </button>
             <button
               onClick={() => setIsHelpModalOpen(true)}
-              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
+              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors whitespace-nowrap"
             >
               Panduan Direktori Drive D:
             </button>
             <button
               onClick={() => setIsBackupModalOpen(true)}
-              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
+              className="hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors whitespace-nowrap"
             >
               Ekspor / Impor JSON
             </button>
@@ -1712,12 +1865,16 @@ export default function App() {
           setShortcuts(restoredShortcuts);
           setGroups(restoredGroups);
           if (firebaseUser) {
-            void replaceWorkspaceDataInFirestore(firebaseUser.uid, restoredGroups, restoredShortcuts).catch((err) => {
-              setCloudError({
-                message: err instanceof Error ? err.message : 'Gagal menyinkronkan data impor ke Firebase.',
-                isQuota: isQuotaExceededError(err),
+            setCloudSyncStatus(isOnline ? 'syncing' : 'offline');
+            void replaceWorkspaceDataInFirestore(firebaseUser.uid, restoredGroups, restoredShortcuts)
+              .then(() => {
+                setCloudSyncStatus(navigator.onLine ? 'synced' : 'offline');
+                setLastSyncedAt(Date.now());
+              })
+              .catch((err) => {
+                setCloudError(formatFirestoreErrorForUser(err));
+                setCloudSyncStatus('error');
               });
-            });
           }
         }}
         onResetDefault={handleResetDefault}
@@ -1772,15 +1929,14 @@ export default function App() {
         canEditLogo={permissions.canEditShortcut}
         initialFocusSection={settingsFocusSection}
         firebaseUser={firebaseUser}
+        cloudSyncStatus={cloudSyncStatus}
+        lastSyncedAt={lastSyncedAt}
         isSigningInGoogle={isSigningInGoogle}
         onSignInGoogle={handleSignInGoogle}
         onSignOutGoogle={handleSignOutGoogle}
         onSyncLocalToCloud={handleSyncLocalToCloud}
         onAppInstalled={handleAppInstalled}
       />
-
-      {/* Offline PWA Connectivity Indicator */}
-      <OfflineIndicator />
 
       {/* Cinematic J.A.R.V.I.S. Startup HUD */}
       {showJarvisIntro && (

@@ -26,7 +26,7 @@ interface ShortcutListItemProps {
   onTogglePin: (shortcut: ShortcutItem) => void;
 }
 
-export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
+export const ShortcutListItem: React.FC<ShortcutListItemProps> = React.memo(({
   shortcut,
   group,
   canEditShortcut = true,
@@ -39,8 +39,10 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!showMenu) return;
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
@@ -48,6 +50,14 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
   }, []);
 
   const handleCopyPath = async (e: React.MouseEvent) => {
@@ -55,7 +65,13 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
     const success = await copyToClipboard(shortcut.url);
     if (success) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copyTimerRef.current = null;
+      }, 2000);
     }
   };
 
@@ -75,10 +91,10 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
   return (
     <div
       onClick={() => onLaunch(shortcut)}
-      className="group flex items-center justify-between gap-4 p-3 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/25 border-b border-neutral-100 dark:border-neutral-800/80 transition-colors cursor-pointer text-xs"
+      className={`group relative ${showMenu ? 'z-30' : ''} flex items-center justify-between gap-3 sm:gap-4 p-3 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/25 border-b border-neutral-100 dark:border-neutral-800/80 transition-colors cursor-pointer text-xs`}
     >
       {/* Icon + Title + Group */}
-      <div className="flex items-center gap-3 min-w-[240px] flex-1">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 overflow-hidden shadow-2xs clay-icon-well ${colorTheme.iconBg}`}>
           {hasCustomPhoto ? (
             <img
@@ -105,8 +121,8 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
           )}
         </div>
 
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-semibold text-neutral-900 dark:text-neutral-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
               {shortcut.title}
             </span>
@@ -114,10 +130,10 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
               <Pin className="w-3 h-3 text-amber-500 fill-current shrink-0" />
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 mt-0.5">
+          <div className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400 mt-0.5 min-w-0">
             <span className={`truncate font-medium ${colorTheme.text}`}>{group?.name || 'Umum'}</span>
-            <span aria-hidden="true">·</span>
-            <span className="capitalize">{isDirectory ? 'Drive Lokal' : 'Web Link'}</span>
+            <span aria-hidden="true" className="shrink-0">·</span>
+            <span className="capitalize shrink-0 whitespace-nowrap">{isDirectory ? 'Drive Lokal' : 'Web Link'}</span>
           </div>
         </div>
       </div>
@@ -133,7 +149,7 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
       </div>
 
       {/* Click counter */}
-      <div className="w-16 text-right font-mono tabular-nums text-neutral-400 dark:text-neutral-500 shrink-0">
+      <div className="hidden sm:block w-16 text-right font-mono tabular-nums text-neutral-400 dark:text-neutral-500 shrink-0">
         {shortcut.clickCount} klik
       </div>
 
@@ -216,4 +232,4 @@ export const ShortcutListItem: React.FC<ShortcutListItemProps> = ({
       </div>
     </div>
   );
-};
+});

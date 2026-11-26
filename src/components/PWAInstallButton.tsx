@@ -31,20 +31,17 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
       return null;
     }
 
-    // Show direct install trigger when browser supports native prompt or iOS Safari
-    if (!isInstallable && !isIOS) {
-      return null;
-    }
-
     return (
       <>
         <button
           type="button"
           onClick={handleInstallClick}
           title={
-            isIOS
+            isInstallable
+              ? 'Install OneStop Hub sebagai aplikasi di PC atau HP'
+              : isIOS
               ? 'Install OneStop Hub di iPhone / iPad'
-              : 'Install OneStop Hub sebagai aplikasi di PC atau HP'
+              : 'Cara Install OneStop Hub di PC & HP'
           }
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:via-teal-400 hover:to-cyan-400 shadow-xs transition-all whitespace-nowrap shrink-0 cursor-pointer clay-btn-emerald"
         >
@@ -153,6 +150,7 @@ interface InstallGuideModalProps {
 
 const InstallGuideModal: React.FC<InstallGuideModalProps> = ({ isIOS, isAndroid, onClose }) => {
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+  const fullTabUrl = typeof window !== 'undefined' ? window.location.href : '/';
 
   return (
     <div
@@ -191,11 +189,22 @@ const InstallGuideModal: React.FC<InstallGuideModalProps> = ({ isIOS, isAndroid,
         </div>
 
         {isInIframe && (
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 flex items-start gap-2">
-            <ExternalLink className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-            <span>
-              Browser memblokir dialog install otomatis di dalam pratinjau tersemat (iframe). Buka URL aplikasi di <strong>tab browser penuh</strong> agar tombol <strong>Install App</strong> muncul otomatis.
-            </span>
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 space-y-2">
+            <div className="flex items-start gap-2">
+              <ExternalLink className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <span>
+                Browser memblokir dialog install otomatis di dalam pratinjau tersemat (iframe). Buka aplikasi di <strong>tab browser penuh</strong> agar dialog install 1-klik aktif.
+              </span>
+            </div>
+            <a
+              href={fullTabUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Buka di Tab Browser Penuh</span>
+            </a>
           </div>
         )}
 

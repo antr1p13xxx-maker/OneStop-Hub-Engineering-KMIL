@@ -65,11 +65,11 @@ export const LocalDirectoryHelpModal: React.FC<LocalDirectoryHelpModalProps> = (
           <div className="space-y-3">
             {/* Method 1 */}
             <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                 <span className="font-bold text-neutral-900 dark:text-neutral-100">
                   Metode 1: Fitur 1-Klik Salin & Win + R (Paling Cepat di Windows)
                 </span>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
                   Rekomendasi ⭐
                 </span>
               </div>
@@ -85,23 +85,23 @@ export const LocalDirectoryHelpModal: React.FC<LocalDirectoryHelpModalProps> = (
 
             {/* Method 2 */}
             <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                 <span className="font-bold text-neutral-900 dark:text-neutral-100">
                   Metode 2: Protokol Aplikasi Desktop (misal VS Code)
                 </span>
-                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium shrink-0">
                   Untuk Developer
                 </span>
               </div>
               <p className="mb-2">
                 Jika folder tersebut adalah proyek koding atau workspace VS Code, gunakan format protokol:
               </p>
-              <div className="flex items-center justify-between p-2 rounded bg-neutral-100 dark:bg-neutral-800 font-mono text-[11px]">
-                <span>vscode://file/D:/Proyek_Utama</span>
+              <div className="flex items-center justify-between gap-2 p-2 rounded bg-neutral-100 dark:bg-neutral-800 font-mono text-[11px]">
+                <span className="truncate min-w-0">vscode://file/D:/Proyek_Utama</span>
                 <button
                   type="button"
                   onClick={() => handleCopy('vscode://file/D:/Proyek_Utama', 'vscode')}
-                  className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
                 >
                   {copiedId === 'vscode' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedId === 'vscode' ? 'Tersalin' : 'Salin'}</span>
@@ -114,23 +114,23 @@ export const LocalDirectoryHelpModal: React.FC<LocalDirectoryHelpModalProps> = (
 
             {/* Method 3 */}
             <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                 <span className="font-bold text-neutral-900 dark:text-neutral-100">
                   Metode 3: Format file:/// URL
                 </span>
-                <span className="text-[11px] text-neutral-500 font-medium">
+                <span className="text-[11px] text-neutral-500 font-medium shrink-0">
                   Browser Built-in
                 </span>
               </div>
               <p className="mb-2">
                 Anda juga dapat memasukkan alamat dengan format URL berkas seperti:
               </p>
-              <div className="flex items-center justify-between p-2 rounded bg-neutral-100 dark:bg-neutral-800 font-mono text-[11px]">
-                <span>file:///D:/Proyek_Utama/2026/</span>
+              <div className="flex items-center justify-between gap-2 p-2 rounded bg-neutral-100 dark:bg-neutral-800 font-mono text-[11px]">
+                <span className="truncate min-w-0">file:///D:/Proyek_Utama/2026/</span>
                 <button
                   type="button"
                   onClick={() => handleCopy('file:///D:/Proyek_Utama/2026/', 'fileurl')}
-                  className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
                 >
                   {copiedId === 'fileurl' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedId === 'fileurl' ? 'Tersalin' : 'Salin'}</span>

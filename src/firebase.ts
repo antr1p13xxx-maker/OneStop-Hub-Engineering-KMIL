@@ -1,8 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   User,
 } from 'firebase/auth';
@@ -48,6 +50,7 @@ export const FIREBASE_CONSOLE_URL = `https://console.firebase.google.com/project
 export const FIREBASE_UPGRADE_URL = `${FIREBASE_CONSOLE_URL}?openUpgradeDialog=true`;
 
 async function testConnection(): Promise<void> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
@@ -59,9 +62,39 @@ async function testConnection(): Promise<void> {
 
 void testConnection();
 
-export async function signInWithGoogle(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
+export async function resolveRedirectAuth(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function signInWithGoogle(): Promise<User | null> {
+  const isStandalonePWA =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true);
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    const shouldFallbackToRedirect =
+      !isInIframe &&
+      (isStandalonePWA ||
+        code === 'auth/popup-blocked' ||
+        code === 'auth/operation-not-supported-in-this-environment');
+
+    if (shouldFallbackToRedirect) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function signOutFirebase(): Promise<void> {

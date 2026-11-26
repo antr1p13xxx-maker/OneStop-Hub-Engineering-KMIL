@@ -372,13 +372,19 @@ export function saveStoredTheme(theme: 'light' | 'dark'): void {
   }
 }
 
+let themeTransitionTimer: number | null = null;
+
 export function applyThemeWithTransition(theme: 'light' | 'dark'): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.classList.add('theme-transitioning');
   root.classList.toggle('dark', theme === 'dark');
-  setTimeout(() => {
+  if (themeTransitionTimer !== null) {
+    window.clearTimeout(themeTransitionTimer);
+  }
+  themeTransitionTimer = window.setTimeout(() => {
     root.classList.remove('theme-transitioning');
+    themeTransitionTimer = null;
   }, 400);
 }
 
@@ -531,13 +537,19 @@ export function saveStoredUiStyle(style: import('../types').UiStyle): void {
   }
 }
 
+let uiStyleTransitionTimer: number | null = null;
+
 export function applyUiStyleWithTransition(style: import('../types').UiStyle): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.classList.add('theme-transitioning');
   root.dataset.uiStyle = style === 'claymorphism' ? 'clay' : 'classic';
-  setTimeout(() => {
+  if (uiStyleTransitionTimer !== null) {
+    window.clearTimeout(uiStyleTransitionTimer);
+  }
+  uiStyleTransitionTimer = window.setTimeout(() => {
     root.classList.remove('theme-transitioning');
+    uiStyleTransitionTimer = null;
   }, 400);
 }
 

@@ -1,5 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  useMotionTemplate,
+} from 'motion/react';
 import {
   ExternalLink,
   Copy,
@@ -31,7 +39,7 @@ interface ShortcutCardProps {
   onDuplicate: (shortcut: ShortcutItem) => void;
 }
 
-export const ShortcutCard: React.FC<ShortcutCardProps> = ({
+export const ShortcutCard: React.FC<ShortcutCardProps> = React.memo(({
   shortcut,
   group,
   density = 'medium',
@@ -46,10 +54,59 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const copyTimerRef = useRef<number | null>(null);
   const shouldReduceMotion = useReducedMotion();
 
+  // Normalized pointer coordinates (-0.5 to 0.5) & percentage (0% to 100%) for 3D tilt + clay sheen
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const sheenPercentX = useMotionValue(50);
+  const sheenPercentY = useMotionValue(50);
+
+  const springConfig = { stiffness: 360, damping: 26, mass: 0.55 };
+  const smoothX = useSpring(pointerX, springConfig);
+  const smoothY = useSpring(pointerY, springConfig);
+  const smoothSheenX = useSpring(sheenPercentX, { stiffness: 300, damping: 30 });
+  const smoothSheenY = useSpring(sheenPercentY, { stiffness: 300, damping: 30 });
+
+  const tiltLimit = density === 'small' ? 3.5 : 4.5;
+  const rotateX = useTransform(smoothY, [-0.5, 0.5], [tiltLimit, -tiltLimit]);
+  const rotateY = useTransform(smoothX, [-0.5, 0.5], [-tiltLimit, tiltLimit]);
+  const sheenBackground = useMotionTemplate`radial-gradient(240px circle at ${smoothSheenX}% ${smoothSheenY}%, var(--clay-sheen-color, rgba(255, 255, 255, 0.28)), transparent 72%)`;
+
+  const resetTilt = () => {
+    pointerX.set(0);
+    pointerY.set(0);
+    sheenPercentX.set(50);
+    sheenPercentY.set(50);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (shouldReduceMotion || showMenu || e.pointerType !== 'mouse' || !cardRef.current) {
+      return;
+    }
+    const rect = cardRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+
+    pointerX.set(Math.max(-0.5, Math.min(0.5, relX - 0.5)));
+    pointerY.set(Math.max(-0.5, Math.min(0.5, relY - 0.5)));
+    sheenPercentX.set(Math.max(0, Math.min(100, relX * 100)));
+    sheenPercentY.set(Math.max(0, Math.min(100, relY * 100)));
+  };
+
   useEffect(() => {
+    if (showMenu) {
+      resetTilt();
+    }
+  }, [showMenu]);
+
+  useEffect(() => {
+    if (!showMenu) return;
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
@@ -57,14 +114,32 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
   }, []);
+
+  const scheduleCopiedReset = () => {
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopiedType(null);
+      copyTimerRef.current = null;
+    }, 2000);
+  };
 
   const handleCopyPath = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const success = await copyToClipboard(shortcut.url);
     if (success) {
       setCopiedType('path');
-      setTimeout(() => setCopiedType(null), 2000);
+      scheduleCopiedReset();
     }
   };
 
@@ -74,7 +149,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
     const success = await copyToClipboard(cmd);
     if (success) {
       setCopiedType('explorer');
-      setTimeout(() => setCopiedType(null), 2000);
+      scheduleCopiedReset();
     }
     setShowMenu(false);
   };
@@ -111,24 +186,67 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
 
   return (
     <motion.div
+      ref={cardRef}
       onClick={() => onLaunch(shortcut)}
+      onPointerMove={handlePointerMove}
       onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      whileHover={shouldReduceMotion ? undefined : { y: -4, scale: 1.012 }}
-      whileTap={shouldReduceMotion ? undefined : { y: -1, scale: 0.985 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 28, mass: 0.7 }}
-      className={`group relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 ${colorTheme.cardHoverBorder} ${containerPadding} transition-[box-shadow,border-color,background-color] duration-200 cursor-pointer shadow-xs hover:shadow-md clay-card flex flex-col justify-between`}
+      onHoverEnd={() => {
+        setIsHovered(false);
+        resetTilt();
+      }}
+      onPointerCancel={() => {
+        setIsHovered(false);
+        resetTilt();
+      }}
+      style={
+        shouldReduceMotion || showMenu
+          ? undefined
+          : {
+              transformPerspective: 950,
+              rotateX,
+              rotateY,
+            }
+      }
+      whileHover={shouldReduceMotion || showMenu ? undefined : { y: -5, scale: 1.016 }}
+      whileTap={shouldReduceMotion || showMenu ? undefined : { y: -1, scale: 0.982 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 26, mass: 0.68 }}
+      className={`group relative ${showMenu ? 'z-30' : 'hover:z-10'} bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 ${colorTheme.cardHoverBorder} ${containerPadding} cursor-pointer clay-card flex flex-col justify-between`}
     >
-      <div>
+      {/* Tactile clay specular highlight following pointer */}
+      {!shouldReduceMotion && (
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-[inherit] overflow-hidden"
+          animate={{ opacity: isHovered && !showMenu ? 1 : 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
+          <motion.div
+            className="absolute inset-0"
+            style={{ background: sheenBackground }}
+          />
+        </motion.div>
+      )}
+
+      <div className={`relative ${showMenu ? 'z-20' : 'z-[2]'} min-w-0`}>
         {/* Top unboxed metadata line */}
-        <div className={`flex items-center justify-between text-neutral-500 dark:text-neutral-400 ${topMargin}`}>
-          <div className="flex items-center gap-1.5 truncate pr-2">
-            <span className={`font-medium ${groupBadgeClass}`}>
+        <div className={`flex items-center justify-between gap-2 text-neutral-500 dark:text-neutral-400 ${topMargin}`}>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className={`font-medium truncate ${groupBadgeClass}`}>
               {group?.name || 'Umum'}
             </span>
-            <span aria-hidden="true">·</span>
-            <span className="capitalize">
-              {isDirectory ? 'Direktori Drive' : isProtocol ? 'App Desktop' : 'Layanan Web'}
+            <span aria-hidden="true" className="shrink-0">·</span>
+            <span className="capitalize shrink-0 whitespace-nowrap">
+              {density === 'small'
+                ? isDirectory
+                  ? 'Drive'
+                  : isProtocol
+                  ? 'App'
+                  : 'Web'
+                : isDirectory
+                ? 'Direktori Drive'
+                : isProtocol
+                ? 'App Desktop'
+                : 'Layanan Web'}
             </span>
           </div>
 
@@ -242,9 +360,13 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
             animate={
               shouldReduceMotion
                 ? undefined
-                : { scale: isHovered ? 1.07 : 1, rotate: isHovered ? -2 : 0 }
+                : {
+                    y: isHovered ? -1.5 : 0,
+                    scale: isHovered ? 1.08 : 1,
+                    rotate: isHovered ? -2.5 : 0,
+                  }
             }
-            transition={{ type: 'spring', stiffness: 460, damping: 24 }}
+            transition={{ type: 'spring', stiffness: 460, damping: 22 }}
             className={`${
               density === 'small'
                 ? 'w-7 h-7 rounded-md'
@@ -309,18 +431,18 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
       </div>
 
       {/* Bottom Action Strip */}
-      <div className={`${
+      <div className={`relative z-[1] ${
         density === 'small'
           ? 'mt-2.5 pt-2 text-[10px]'
           : density === 'large'
           ? 'mt-5 pt-3.5 text-xs'
           : 'mt-4 pt-3 text-xs'
-      } border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2`}>
-        <div className="text-neutral-400 dark:text-neutral-500 tabular-nums">
+      } border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-1.5`}>
+        <div className="text-neutral-400 dark:text-neutral-500 tabular-nums whitespace-nowrap shrink-0">
           <span>{shortcut.clickCount} klik</span>
         </div>
 
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <motion.button
             type="button"
             onClick={handleCopyPath}
@@ -328,7 +450,7 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
             whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 500, damping: 26 }}
             title="Salin alamat"
-            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors clay-btn-soft clay-motion-btn ${
+            className={`inline-flex items-center gap-1 rounded bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-medium transition-colors whitespace-nowrap clay-btn-soft clay-motion-btn ${
               density === 'small' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs'
             }`}
           >
@@ -377,4 +499,4 @@ export const ShortcutCard: React.FC<ShortcutCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});

@@ -54,12 +54,12 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(
+function buildFirestoreErrorInfo(
   error: unknown,
   operationType: OperationType,
   path: string | null
-): never {
-  const errInfo: FirestoreErrorInfo = {
+): FirestoreErrorInfo {
+  return {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
       userId: auth.currentUser?.uid,
@@ -76,7 +76,24 @@ export function handleFirestoreError(
     operationType,
     path,
   };
+}
+
+export function logFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): FirestoreErrorInfo {
+  const errInfo = buildFirestoreErrorInfo(error, operationType, path);
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  return errInfo;
+}
+
+export function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): never {
+  const errInfo = logFirestoreError(error, operationType, path);
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -87,6 +104,57 @@ export function isQuotaExceededError(error: unknown): boolean {
     msg.includes('resource-exhausted') ||
     msg.includes('Free daily read units per project')
   );
+}
+
+export function formatFirestoreErrorForUser(error: unknown): {
+  message: string;
+  isQuota: boolean;
+} {
+  if (isQuotaExceededError(error)) {
+    return {
+      message:
+        'Kuota harian gratis Firestore telah terlampaui (Quota exceeded). Data lokal tetap tersimpan dan akan disinkronkan kembali setelah kuota direset.',
+      isQuota: true,
+    };
+  }
+
+  let rawMessage = error instanceof Error ? error.message : String(error || '');
+  try {
+    const parsed = JSON.parse(rawMessage) as Partial<FirestoreErrorInfo>;
+    if (parsed && typeof parsed.error === 'string') {
+      rawMessage = parsed.error;
+    }
+  } catch {
+    // Plain error message
+  }
+
+  const lower = rawMessage.toLowerCase();
+  if (lower.includes('permission-denied') || lower.includes('missing or insufficient permissions')) {
+    return {
+      message:
+        'Izin akses Firestore ditolak. Pastikan Anda masuk dengan akun Google yang terverifikasi.',
+      isQuota: false,
+    };
+  }
+  if (lower.includes('unavailable') || lower.includes('network') || lower.includes('offline')) {
+    return {
+      message:
+        'Koneksi ke Firebase Firestore sedang terganggu. Perubahan tersimpan di cache lokal dan akan tersinkron otomatis saat online.',
+      isQuota: false,
+    };
+  }
+  if (lower.includes('failed-precondition') || lower.includes('index')) {
+    return {
+      message:
+        'Database Firestore belum siap atau membutuhkan indeks. Silakan coba muat ulang halaman.',
+      isQuota: false,
+    };
+  }
+
+  return {
+    message: rawMessage || 'Gagal menyinkronkan data dengan Firebase Firestore.',
+    isQuota: false,
+  };
 }
 
 // ============================================================================
@@ -416,8 +484,8 @@ export function subscribeToGroups(
       onData(parsed);
     },
     (error) => {
-      onError?.(error);
-      handleFirestoreError(error, OperationType.LIST, path);
+      const info = logFirestoreError(error, OperationType.LIST, path);
+      onError?.(new Error(JSON.stringify(info)));
     }
   );
 }
@@ -456,8 +524,8 @@ export function subscribeToShortcuts(
       onData(parsed);
     },
     (error) => {
-      onError?.(error);
-      handleFirestoreError(error, OperationType.LIST, path);
+      const info = logFirestoreError(error, OperationType.LIST, path);
+      onError?.(new Error(JSON.stringify(info)));
     }
   );
 }
@@ -500,8 +568,8 @@ export function subscribeToSettings(
       });
     },
     (error) => {
-      onError?.(error);
-      handleFirestoreError(error, OperationType.GET, path);
+      const info = logFirestoreError(error, OperationType.GET, path);
+      onError?.(new Error(JSON.stringify(info)));
     }
   );
 }

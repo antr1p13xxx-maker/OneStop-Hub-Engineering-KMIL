@@ -77,12 +77,12 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
     ? shortcuts.find((s) => s.id === inspectedItem.id) || null
     : null;
 
-  // Orbit displays up to 16 items around the circle cleanly; any extras render below
-  const maxOrbitCount = 16;
+  // Orbit displays up to 12 items around the circle cleanly so labels never collide; extras render below
+  const maxOrbitCount = 12;
   const orbitItems = shortcuts.slice(0, maxOrbitCount);
   const overflowItems = shortcuts.slice(maxOrbitCount);
 
-  // Split display title into two-tone white + amber like reference ("Quick" + "seva")
+  // Split display title into two-tone white + amber
   const rawTitle = activeGroup ? activeGroup.name : 'OneStop Hub';
   const titleParts = rawTitle.trim().split(/\s+/);
   const firstTitleWord = titleParts[0] || 'OneStop';
@@ -117,8 +117,198 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
     }
   };
 
-  // Radius percentage inside the square orbital stage
-  const radiusPct = orbitItems.length <= 6 ? 37 : orbitItems.length <= 12 ? 39 : 41;
+  // Radius percentage inside the square orbital stage (generous separation from center HUD)
+  const radiusPct = orbitItems.length <= 4 ? 35 : orbitItems.length <= 8 ? 38.5 : 41;
+
+  const renderCenterHud = () =>
+    activeShortcut ? (
+      <div className="space-y-1.5 animate-in fade-in duration-150 w-full">
+        <div className="inline-flex items-center justify-center gap-1 text-[10px] font-mono uppercase tracking-wider text-amber-400 flex-wrap">
+          <span>
+            {activeShortcut.type === 'directory'
+              ? 'Direktori Drive'
+              : activeShortcut.type === 'protocol'
+              ? 'App Desktop'
+              : 'Layanan Web'}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="tabular-nums">{activeShortcut.clickCount} klik</span>
+        </div>
+
+        <h3 className="text-sm sm:text-lg font-extrabold text-white leading-tight line-clamp-2 break-words">
+          {activeShortcut.title}
+        </h3>
+
+        <p className="text-[10px] sm:text-xs font-mono text-amber-300/90 truncate px-1">
+          {activeShortcut.url}
+        </p>
+
+        {activeShortcut.description && (
+          <p className="hidden sm:line-clamp-2 text-[11px] text-neutral-400 leading-snug">
+            {activeShortcut.description}
+          </p>
+        )}
+
+        {/* Quick Center Action Strip */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1.5">
+          <button
+            type="button"
+            onClick={() => onLaunch(activeShortcut)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 text-[11px] font-bold shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-colors cursor-pointer"
+          >
+            {activeShortcut.type === 'directory' ? (
+              <FolderOpen className="w-3 h-3" />
+            ) : (
+              <ExternalLink className="w-3 h-3" />
+            )}
+            <span>Buka</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => handleCopy(e, activeShortcut)}
+            title="Salin Alamat / Path"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-500/35 bg-neutral-900/90 hover:bg-neutral-800 text-amber-300 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            {copiedId === activeShortcut.id ? (
+              <Check className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
+            <span className="hidden sm:inline">
+              {copiedId === activeShortcut.id ? 'Disalin' : 'Salin'}
+            </span>
+          </button>
+
+          {canEditShortcut && (
+            <>
+              <button
+                type="button"
+                onClick={() => onTogglePin(activeShortcut)}
+                title={activeShortcut.isPinned ? 'Lepas Pin' : 'Sematkan'}
+                className={`p-1 rounded-lg border transition-colors cursor-pointer ${
+                  activeShortcut.isPinned
+                    ? 'border-amber-400 bg-amber-500/20 text-amber-300'
+                    : 'border-neutral-700 bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300'
+                }`}
+              >
+                <Pin className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onEdit(activeShortcut)}
+                title="Edit Pintasan"
+                className="p-1 rounded-lg border border-neutral-700 bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
+            </>
+          )}
+
+          {canDeleteShortcut && (
+            <button
+              type="button"
+              onClick={() => {
+                onDelete(activeShortcut.id);
+                setInspectedItem(null);
+              }}
+              title="Hapus Pintasan"
+              className="p-1 rounded-lg border border-rose-500/30 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+    ) : (
+      <div className="space-y-1 w-full">
+        {activeGroup && isImageIcon(activeGroup.icon) ? (
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl border border-amber-500/50 bg-neutral-900/90 overflow-hidden mx-auto mb-1.5 shadow-[0_0_24px_rgba(245,158,11,0.3)]">
+            <img
+              src={activeGroup.icon}
+              alt={activeGroup.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : customLogo?.src && !logoError ? (
+          <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
+            <div className="w-full h-full rounded-xl border border-amber-500/45 bg-neutral-900/90 overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.25)]">
+              <img
+                src={customLogo.src}
+                alt="OneStop Hub Engineering"
+                onError={() => setLogoError(true)}
+                className={`w-full h-full ${
+                  customLogo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
+                }`}
+              />
+            </div>
+            {!activeGroup && onOpenLogoSettings && (
+              <button
+                type="button"
+                onClick={onOpenLogoSettings}
+                title={
+                  canEditLogo
+                    ? 'Ganti Foto Logo OneStop Hub'
+                    : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
+                }
+                aria-label="Ganti Foto Logo OneStop Hub"
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
+              >
+                <Camera className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        ) : activeGroup ? (
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center mx-auto mb-1.5 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+            <DynamicIcon name={activeGroup.icon} className="w-5 h-5" />
+          </div>
+        ) : (
+          <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
+            <div className="w-full h-full rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+              <Layers className="w-5 h-5" />
+            </div>
+            {onOpenLogoSettings && (
+              <button
+                type="button"
+                onClick={onOpenLogoSettings}
+                title={
+                  canEditLogo
+                    ? 'Ganti Foto Logo OneStop Hub'
+                    : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
+                }
+                aria-label="Ganti Foto Logo OneStop Hub"
+                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
+              >
+                <Camera className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        <h2 className="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-tight line-clamp-2 break-words">
+          <span className="text-white">{firstTitleWord}</span>
+          {restTitleWords && (
+            <span className="text-amber-400"> {restTitleWords}</span>
+          )}
+        </h2>
+
+        <p className="text-[11px] sm:text-xs font-medium text-neutral-300">
+          One-stop <span className="text-amber-400">service hub</span>
+        </p>
+
+        {activeGroup?.description && (
+          <p className="hidden sm:line-clamp-2 text-[11px] text-neutral-400 leading-snug pt-0.5">
+            {activeGroup.description}
+          </p>
+        )}
+
+        <p className="text-[10px] font-mono text-neutral-500 pt-1">
+          {orbitItems.length === 0
+            ? 'Belum ada pintasan'
+            : 'Arahkan atau klik ikon pintasan'}
+        </p>
+      </div>
+    );
 
   return (
     <div
@@ -153,49 +343,49 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
       />
 
       {/* Stage Top Bar: Group Switcher & Quick Add */}
-      <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2">
+      <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-2">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={() => handleCycleGroup('prev')}
             title="Grup Sebelumnya"
-            className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors cursor-pointer shrink-0"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-2 px-3 py-1 rounded-lg border border-amber-500/25 bg-neutral-900/80 text-xs">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-lg border border-amber-500/25 bg-neutral-900/80 text-xs min-w-0">
             {activeGroup ? (
               <>
-                <DynamicIcon name={activeGroup.icon} className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-semibold text-white">{activeGroup.name}</span>
+                <DynamicIcon name={activeGroup.icon} className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-semibold text-white truncate max-w-[140px] sm:max-w-[220px]">{activeGroup.name}</span>
               </>
             ) : (
               <>
-                <Layers className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-semibold text-white">Semua Grup</span>
+                <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-semibold text-white whitespace-nowrap">Semua Grup</span>
               </>
             )}
-            <span className="text-amber-400/80 font-mono">· {shortcuts.length}</span>
+            <span className="text-amber-400/80 font-mono tabular-nums shrink-0">· {shortcuts.length}</span>
           </div>
 
           <button
             type="button"
             onClick={() => handleCycleGroup('next')}
             title="Grup Berikutnya"
-            className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {activeGroup && canDeleteGroup && groups.length > 1 && onRequestDeleteGroup && (
             <button
               type="button"
               onClick={() => onRequestDeleteGroup(activeGroup.id)}
               title={`Hapus grup ${activeGroup.name}`}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-rose-500/40 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-rose-500/40 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 transition-colors cursor-pointer whitespace-nowrap"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Hapus Grup</span>
@@ -208,7 +398,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                 setInspectedItem(null);
                 onSelectGroupFilter('all');
               }}
-              className="px-2.5 py-1 text-xs rounded-lg border border-neutral-700 bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 transition-colors cursor-pointer"
+              className="px-2.5 py-1 text-xs rounded-lg border border-neutral-700 bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 transition-colors cursor-pointer whitespace-nowrap"
             >
               Lihat Semua Grup
             </button>
@@ -217,7 +407,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             <button
               type="button"
               onClick={() => onAddInGroup(activeGroup?.id)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-[0_0_20px_rgba(245,158,11,0.35)] transition-colors cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Tambah ke Grup</span>
@@ -226,221 +416,118 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
         </div>
       </div>
 
-      {/* Circular Orbital Hub Stage */}
-      <div className="relative z-10 flex items-center justify-center py-4 sm:py-6">
+      {/* Mobile (< sm): Clean non-overlapping Center HUD + Grid Nodes */}
+      <div className="sm:hidden relative z-10 space-y-5 py-2">
+        <div className="mx-auto max-w-sm rounded-2xl border border-amber-500/25 bg-neutral-900/70 px-4 py-4 text-center flex flex-col items-center justify-center">
+          {renderCenterHud()}
+        </div>
+
+        {orbitItems.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            {orbitItems.map((item) => {
+              const isSelected = activeShortcut?.id === item.id;
+              const isDirectory = item.type === 'directory';
+              const customPhotoKey = `${item.id}:${item.iconValue || ''}`;
+              const hasCustomPhoto =
+                item.iconType === 'custom' &&
+                isImageIcon(item.iconValue) &&
+                !failedCustomPhotos[customPhotoKey];
+              const favicon =
+                item.iconType === 'favicon' && !failedFavicons[item.id]
+                  ? getFaviconUrl(item.url)
+                  : null;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setInspectedItem(item);
+                    onLaunch(item);
+                  }}
+                  title={`${item.title} — ${item.url}`}
+                  className={`relative flex flex-col items-center p-2.5 rounded-2xl border transition-all cursor-pointer min-w-0 ${
+                    isSelected
+                      ? 'bg-amber-500/20 border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.35)]'
+                      : 'bg-neutral-900/80 border-amber-500/30 hover:border-amber-400'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center mb-1.5 bg-neutral-950/60">
+                    {hasCustomPhoto ? (
+                      <img
+                        src={item.iconValue}
+                        alt={item.title}
+                        onError={() =>
+                          setFailedCustomPhotos((prev) => ({
+                            ...prev,
+                            [customPhotoKey]: true,
+                          }))
+                        }
+                        className="w-full h-full object-cover"
+                      />
+                    ) : isDirectory ? (
+                      <HardDrive className="w-5 h-5 text-amber-400 stroke-[1.75]" />
+                    ) : favicon ? (
+                      <img
+                        src={favicon}
+                        alt={item.title}
+                        referrerPolicy="no-referrer"
+                        onError={() =>
+                          setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
+                        }
+                        className="w-6 h-6 object-contain rounded"
+                      />
+                    ) : (
+                      <DynamicIcon
+                        name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                        className="w-5 h-5 text-amber-400 stroke-[1.75]"
+                      />
+                    )}
+                  </div>
+                  <span className="w-full text-[11px] font-medium text-neutral-200 truncate text-center leading-tight">
+                    {item.title}
+                  </span>
+                  {item.isPinned && (
+                    <span
+                      title="Tersemat"
+                      className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-amber-500 text-neutral-950 flex items-center justify-center shadow"
+                    >
+                      <Pin className="w-2 h-2 fill-current" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Tablet & Desktop (sm+): Spacious Circular Orbital Hub Stage with Zero Text Overlap */}
+      <div className="hidden sm:flex relative z-10 items-center justify-center py-6">
         <div
           onClick={() => setInspectedItem(null)}
-          className="relative w-[310px] h-[310px] sm:w-[500px] sm:h-[500px] md:w-[570px] md:h-[570px] flex items-center justify-center"
+          className="relative w-[560px] h-[560px] md:w-[660px] md:h-[660px] lg:w-[720px] lg:h-[720px] flex items-center justify-center"
         >
           {/* Decorative Circular Orbit Rings */}
           <div
             aria-hidden="true"
-            className="absolute inset-[11%] rounded-full border border-amber-500/15 pointer-events-none"
+            className="absolute inset-[10%] rounded-full border border-amber-500/15 pointer-events-none"
           />
           <div
             aria-hidden="true"
-            className="absolute inset-[18%] rounded-full border border-dashed border-amber-500/10 pointer-events-none"
+            className="absolute inset-[19%] rounded-full border border-dashed border-amber-500/10 pointer-events-none"
           />
           <div
             aria-hidden="true"
-            className="absolute w-44 h-44 sm:w-64 sm:h-64 rounded-full bg-amber-500/5 blur-2xl pointer-events-none"
+            className="absolute w-52 h-52 md:w-64 md:h-64 rounded-full bg-amber-500/5 blur-2xl pointer-events-none"
           />
 
-          {/* Center Brand / Active Shortcut HUD */}
+          {/* Center Brand / Active Shortcut HUD (bounded width so it never touches ring nodes) */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative z-20 w-[150px] sm:w-[235px] md:w-[265px] text-center flex flex-col items-center justify-center px-2"
+            className="relative z-20 w-[200px] md:w-[235px] max-h-[210px] text-center flex flex-col items-center justify-center px-3 py-2 rounded-2xl bg-[#08080a]/75 backdrop-blur-xs"
           >
-            {activeShortcut ? (
-              /* Inspected Shortcut Preview in Center */
-              <div className="space-y-1.5 animate-in fade-in duration-150 w-full">
-                <div className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-amber-400">
-                  <span>
-                    {activeShortcut.type === 'directory'
-                      ? 'Direktori Drive'
-                      : activeShortcut.type === 'protocol'
-                      ? 'App Desktop'
-                      : 'Layanan Web'}
-                  </span>
-                  <span>·</span>
-                  <span>{activeShortcut.clickCount} klik</span>
-                </div>
-
-                <h3 className="text-sm sm:text-xl font-extrabold text-white leading-tight line-clamp-2">
-                  {activeShortcut.title}
-                </h3>
-
-                <p className="text-[10px] sm:text-xs font-mono text-amber-300/90 truncate px-1">
-                  {activeShortcut.url}
-                </p>
-
-                {activeShortcut.description && (
-                  <p className="hidden sm:line-clamp-2 text-[11px] text-neutral-400 leading-snug">
-                    {activeShortcut.description}
-                  </p>
-                )}
-
-                {/* Quick Center Action Strip */}
-                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onLaunch(activeShortcut)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 text-[11px] font-bold shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-colors cursor-pointer"
-                  >
-                    {activeShortcut.type === 'directory' ? (
-                      <FolderOpen className="w-3 h-3" />
-                    ) : (
-                      <ExternalLink className="w-3 h-3" />
-                    )}
-                    <span>Buka</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => handleCopy(e, activeShortcut)}
-                    title="Salin Alamat / Path"
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-500/35 bg-neutral-900/90 hover:bg-neutral-800 text-amber-300 text-[11px] font-medium transition-colors cursor-pointer"
-                  >
-                    {copiedId === activeShortcut.id ? (
-                      <Check className="w-3 h-3 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3 h-3" />
-                    )}
-                    <span className="hidden sm:inline">
-                      {copiedId === activeShortcut.id ? 'Disalin' : 'Salin'}
-                    </span>
-                  </button>
-
-                  {canEditShortcut && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onTogglePin(activeShortcut)}
-                        title={activeShortcut.isPinned ? 'Lepas Pin' : 'Sematkan'}
-                        className={`p-1 rounded-lg border transition-colors cursor-pointer ${
-                          activeShortcut.isPinned
-                            ? 'border-amber-400 bg-amber-500/20 text-amber-300'
-                            : 'border-neutral-700 bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300'
-                        }`}
-                      >
-                        <Pin className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onEdit(activeShortcut)}
-                        title="Edit Pintasan"
-                        className="p-1 rounded-lg border border-neutral-700 bg-neutral-900/90 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                    </>
-                  )}
-
-                  {canDeleteShortcut && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onDelete(activeShortcut.id);
-                        setInspectedItem(null);
-                      }}
-                      title="Hapus Pintasan"
-                      className="p-1 rounded-lg border border-rose-500/30 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* Default Center Brand / Group Hub Display (matching Quickseva reference layout) */
-              <div className="space-y-1">
-                {activeGroup && isImageIcon(activeGroup.icon) ? (
-                  <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl border border-amber-500/50 bg-neutral-900/90 overflow-hidden mx-auto mb-1.5 shadow-[0_0_24px_rgba(245,158,11,0.3)]">
-                    <img
-                      src={activeGroup.icon}
-                      alt={activeGroup.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : customLogo?.src && !logoError ? (
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
-                    <div className="w-full h-full rounded-xl border border-amber-500/45 bg-neutral-900/90 overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.25)]">
-                      <img
-                        src={customLogo.src}
-                        alt="OneStop Hub Engineering"
-                        onError={() => setLogoError(true)}
-                        className={`w-full h-full ${
-                          customLogo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
-                        }`}
-                      />
-                    </div>
-                    {!activeGroup && onOpenLogoSettings && (
-                      <button
-                        type="button"
-                        onClick={onOpenLogoSettings}
-                        title={
-                          canEditLogo
-                            ? 'Ganti Foto Logo OneStop Hub'
-                            : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
-                        }
-                        aria-label="Ganti Foto Logo OneStop Hub"
-                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
-                      >
-                        <Camera className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-                ) : activeGroup ? (
-                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center mx-auto mb-1.5 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                    <DynamicIcon name={activeGroup.icon} className="w-5 h-5" />
-                  </div>
-                ) : (
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-1.5 group/orbitlogo">
-                    <div className="w-full h-full rounded-xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                      <Layers className="w-5 h-5" />
-                    </div>
-                    {onOpenLogoSettings && (
-                      <button
-                        type="button"
-                        onClick={onOpenLogoSettings}
-                        title={
-                          canEditLogo
-                            ? 'Ganti Foto Logo OneStop Hub'
-                            : 'Ganti Foto Logo OneStop Hub (Perlu Lead/Manager)'
-                        }
-                        aria-label="Ganti Foto Logo OneStop Hub"
-                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-neutral-900 border border-amber-400/70 text-amber-300 hover:bg-amber-500 hover:text-neutral-950 flex items-center justify-center shadow transition-colors cursor-pointer"
-                      >
-                        <Camera className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <h2 className="text-lg sm:text-3xl font-extrabold tracking-tight leading-tight">
-                  <span className="text-white">{firstTitleWord}</span>
-                  {restTitleWords && (
-                    <span className="text-amber-400"> {restTitleWords}</span>
-                  )}
-                </h2>
-
-                <p className="text-[11px] sm:text-sm font-medium text-neutral-300">
-                  One-stop <span className="text-amber-400">service hub</span>
-                </p>
-
-                {activeGroup?.description && (
-                  <p className="hidden sm:block text-[11px] text-neutral-400 leading-snug pt-0.5 line-clamp-2">
-                    {activeGroup.description}
-                  </p>
-                )}
-
-                <p className="text-[10px] font-mono text-neutral-500 pt-1">
-                  {orbitItems.length === 0
-                    ? 'Belum ada pintasan'
-                    : 'Arahkan atau klik ikon di lingkaran'}
-                </p>
-              </div>
-            )}
+            {renderCenterHud()}
           </div>
 
           {/* Circular Positioned Shortcut Icons */}
@@ -464,7 +551,9 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
               <div
                 key={item.id}
                 style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center group"
+                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group ${
+                  isSelected ? 'z-30' : 'z-20 hover:z-30'
+                }`}
               >
                 <button
                   type="button"
@@ -476,10 +565,10 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                     onLaunch(item);
                   }}
                   title={`${item.title} — ${item.url}`}
-                  className={`relative w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  className={`relative w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
                     isSelected
                       ? 'bg-amber-500/20 border-2 border-amber-400 scale-110 shadow-[0_0_28px_rgba(245,158,11,0.55)]'
-                      : 'bg-neutral-900/85 border border-amber-500/35 hover:border-amber-400 hover:bg-amber-500/15 hover:scale-110 hover:shadow-[0_0_24px_rgba(245,158,11,0.4)]'
+                      : 'bg-neutral-900/90 border border-amber-500/35 hover:border-amber-400 hover:bg-amber-500/15 hover:scale-110 hover:shadow-[0_0_24px_rgba(245,158,11,0.4)]'
                   }`}
                 >
                   <div className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center">
@@ -496,7 +585,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : isDirectory ? (
-                      <HardDrive className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75]" />
+                      <HardDrive className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75]" />
                     ) : favicon ? (
                       <img
                         src={favicon}
@@ -505,12 +594,12 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                         onError={() =>
                           setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
                         }
-                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded"
+                        className="w-6 h-6 md:w-7 md:h-7 object-contain rounded"
                       />
                     ) : (
                       <DynamicIcon
                         name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
-                        className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
+                        className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
                       />
                     )}
                   </div>
@@ -526,7 +615,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                 </button>
 
                 <span
-                  className={`mt-1 text-[10px] sm:text-[11px] font-medium max-w-[70px] sm:max-w-[96px] truncate text-center transition-colors ${
+                  className={`mt-1.5 px-1.5 py-0.5 rounded-md bg-[#08080a]/90 text-[11px] font-medium max-w-[84px] md:max-w-[100px] truncate text-center leading-tight transition-colors ${
                     isSelected
                       ? 'text-amber-300 font-semibold'
                       : 'text-neutral-300 group-hover:text-white'
@@ -540,7 +629,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
         </div>
       </div>
 
-      {/* Overflow Strip if group has more than 16 shortcuts */}
+      {/* Overflow Strip if group has more than 12 shortcuts */}
       {overflowItems.length > 0 && (
         <div className="relative z-20 mt-4 pt-4 border-t border-amber-500/20">
           <p className="text-[11px] font-mono text-amber-400/90 mb-2.5">
@@ -560,7 +649,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                   type="button"
                   onMouseEnter={() => setInspectedItem(item)}
                   onClick={() => onLaunch(item)}
-                  className="flex items-center gap-2 p-2 rounded-xl border border-amber-500/25 bg-neutral-900/75 hover:bg-amber-500/15 hover:border-amber-400 text-left transition-colors cursor-pointer"
+                  className="flex items-center gap-2 p-2 rounded-xl border border-amber-500/25 bg-neutral-900/75 hover:bg-amber-500/15 hover:border-amber-400 text-left transition-colors cursor-pointer min-w-0"
                 >
                   {hasCustomPhoto ? (
                     <img

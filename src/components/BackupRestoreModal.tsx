@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Download, Upload, RefreshCw, AlertTriangle, Check, FileJson } from 'lucide-react';
 import { exportBackupData, importBackupData } from '../services/storage';
 
@@ -20,7 +20,15 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   onResetDefault,
 }) => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFeedback(null);
+      setConfirmReset(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -35,7 +43,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setFeedback({ type: 'success', message: 'File backup JSON berhasil diunduh ke komputer Anda.' });
+    setFeedback({ type: 'success', message: 'File backup JSON berhasil diunduh ke perangkat Anda.' });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +56,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
       const result = importBackupData(content);
       if (result.success) {
         setFeedback({ type: 'success', message: result.message });
+        setConfirmReset(false);
         onDataChanged();
       } else {
         setFeedback({ type: 'error', message: result.message });
@@ -60,12 +69,9 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     e.target.value = '';
   };
 
-  const handleReset = () => {
-    const confirmed = window.confirm(
-      'Apakah Anda yakin ingin mengatur ulang dasbor ke setelan data bawaan? Semua pintasan yang Anda tambahkan sendiri akan digantikan oleh preset bawaan.'
-    );
-    if (!confirmed) return;
+  const handleConfirmReset = () => {
     onResetDefault();
+    setConfirmReset(false);
     setFeedback({ type: 'success', message: 'Dasbor berhasil dikembalikan ke data preset bawaan.' });
   };
 
@@ -173,30 +179,59 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           </div>
 
           {/* Reset Action */}
-          <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850 flex items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold text-neutral-900 dark:text-neutral-100">
-                Reset ke Data Bawaan
-              </p>
-              <p className="text-neutral-500 dark:text-neutral-400 text-[11px] mt-0.5">
-                {canResetData
-                  ? 'Kembalikan contoh pintasan Drive D:, C:, kerja, dan pribadi'
-                  : 'Hanya Manager Engineering yang dapat mereset data'}
-              </p>
+          <div className="p-3.5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-neutral-900 dark:text-neutral-100">
+                  Reset ke Data Bawaan
+                </p>
+                <p className="text-neutral-500 dark:text-neutral-400 text-[11px] mt-0.5">
+                  {canResetData
+                    ? 'Kembalikan contoh pintasan Drive D:, C:, kerja, dan pribadi'
+                    : 'Hanya Manager Engineering yang dapat mereset data'}
+                </p>
+              </div>
+              {canResetData ? (
+                !confirmReset && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmReset(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-medium transition-colors shrink-0"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                )
+              ) : (
+                <span className="text-[11px] px-2.5 py-1 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
+                  Hanya Manager
+                </span>
+              )}
             </div>
-            {canResetData ? (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-medium transition-colors shrink-0"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </button>
-            ) : (
-              <span className="text-[11px] px-2.5 py-1 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
-                Hanya Manager
-              </span>
+
+            {confirmReset && canResetData && (
+              <div className="p-3 rounded-lg bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/70 space-y-2.5 animate-in fade-in duration-150">
+                <p className="text-[11px] text-rose-800 dark:text-rose-200 leading-relaxed">
+                  <strong>Konfirmasi Reset:</strong> Semua pintasan dan grup saat ini akan diganti dengan preset bawaan (termasuk di Firebase Cloud jika terhubung).
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmReset(false)}
+                    className="px-2.5 py-1 rounded-md text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200/70 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmReset}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Ya, Reset Data</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

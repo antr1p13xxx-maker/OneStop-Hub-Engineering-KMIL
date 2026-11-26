@@ -11,10 +11,9 @@ export const OfflineIndicator: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg border border-amber-300/40"
+      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm border border-amber-300/40"
     >
-      <span className="h-2 w-2 rounded-full bg-white animate-pulse shrink-0" />
-      <WifiOff className="w-3.5 h-3.5 shrink-0" />
+      <WifiOff className="w-4 h-4 shrink-0" />
       <span>Mode Offline — Menggunakan data cache lokal &amp; Firestore</span>
     </div>
   );

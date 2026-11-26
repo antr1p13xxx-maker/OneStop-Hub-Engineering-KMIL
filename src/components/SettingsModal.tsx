@@ -42,6 +42,7 @@ import {
   FIREBASE_CONSOLE_URL,
 } from '../firebase';
 import { PWAInstallButton } from './PWAInstallButton';
+import type { CloudSyncStatus } from './Header';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -67,6 +68,8 @@ interface SettingsModalProps {
   canEditLogo?: boolean;
   initialFocusSection?: 'logo' | 'firebase' | null;
   firebaseUser?: User | null;
+  cloudSyncStatus?: CloudSyncStatus;
+  lastSyncedAt?: number | null;
   isSigningInGoogle?: boolean;
   onSignInGoogle?: () => void;
   onSignOutGoogle?: () => void;
@@ -98,6 +101,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   canEditLogo = true,
   initialFocusSection = null,
   firebaseUser = null,
+  cloudSyncStatus = 'local',
+  lastSyncedAt = null,
   isSigningInGoogle = false,
   onSignInGoogle,
   onSignOutGoogle,
@@ -279,8 +284,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="p-6 space-y-6">
           {/* SECTION 0: Logo Aplikasi (Foto Kustom) */}
           <div ref={logoSectionRef}>
-            <div className="flex items-center justify-between mb-3">
-              <div>
+            <div className="flex flex-wrap items-start sm:items-center justify-between gap-2.5 mb-3">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>Logo OneStop Hub (Foto Kustom)</span>
@@ -448,17 +453,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* SECTION 1: Densitas Kartu Grid */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
+            <div className="flex flex-wrap items-start sm:items-center justify-between gap-2.5 mb-3">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                  <Grid3X3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <Grid3X3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Densitas Kartu Pintasan (Grid Mode)</span>
                 </h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                   Pilih ukuran tampilan kartu untuk mengatur berapa banyak pintasan yang tampak di layar.
                 </p>
               </div>
-              <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 whitespace-nowrap shrink-0">
                 Aktif: {density === 'small' ? 'Kompak (S)' : density === 'medium' ? 'Standar (M)' : 'Leluasa (L)'}
               </span>
             </div>
@@ -730,12 +735,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* SECTION 3: Tema & Akses Keamanan */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Theme Info Tile */}
-            <div className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850/50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-200">
+            <div className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850/50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-neutral-700 dark:text-neutral-200 shrink-0">
                   {theme === 'dark' ? <Moon className="w-4 h-4 text-amber-400" /> : <Sun className="w-4 h-4 text-indigo-500" />}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
                     Mode Tema
                   </h4>
@@ -747,20 +752,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors shadow-2xs"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors shadow-2xs whitespace-nowrap shrink-0"
               >
                 Ganti Tema
               </button>
             </div>
 
             {/* Role Info Tile */}
-            <div className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850/50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center">
+            <div className="p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-850/50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-neutral-900 dark:text-neutral-100">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
                     Peran: {ROLE_CONFIGS[currentRole].name}
                   </h4>
                   <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
@@ -778,7 +783,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClose();
                   onOpenRoleSwitch();
                 }}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-2xs"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-2xs whitespace-nowrap shrink-0"
               >
                 Ubah Peran
               </button>
@@ -791,17 +796,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {onUiStyleChange && (
             <>
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
+                <div className="flex flex-wrap items-start sm:items-center justify-between gap-2.5 mb-3">
+                  <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <span>Gaya Desain Antarmuka (UI Style)</span>
                     </h3>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                       Pilih tampilan Claymorphism 3D lembut yang taktil atau Klasik Minimalis yang ringkas.
                     </p>
                   </div>
-                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 whitespace-nowrap shrink-0">
                     {uiStyle === 'claymorphism' ? 'Claymorphism 3D' : 'Klasik Minimalis'}
                   </span>
                 </div>
@@ -877,10 +882,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* SECTION 4: Database Google Firebase Console */}
           <div ref={firebaseSectionRef}>
-            <div className="flex items-center justify-between mb-3">
-              <div>
+            <div className="flex flex-wrap items-start sm:items-center justify-between gap-2.5 mb-3">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Database Cloud (Google Firebase Firestore)</span>
                 </h3>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
@@ -891,7 +896,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 href={FIREBASE_CONSOLE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline whitespace-nowrap shrink-0"
               >
                 <span>Buka Console</span>
                 <ExternalLink className="w-3 h-3" />
@@ -940,11 +945,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
-                          {firebaseUser.displayName || 'Pengguna Google'}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-bold text-neutral-900 dark:text-neutral-100 truncate">
+                            {firebaseUser.displayName || 'Pengguna Google'}
+                          </p>
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                              cloudSyncStatus === 'error'
+                                ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+                                : cloudSyncStatus === 'offline'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                                : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing'
+                                ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                                : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                            }`}
+                          >
+                            {cloudSyncStatus === 'error'
+                              ? 'Gangguan Sync'
+                              : cloudSyncStatus === 'offline'
+                              ? 'Mode Offline'
+                              : cloudSyncStatus === 'connecting' || cloudSyncStatus === 'syncing'
+                              ? 'Menyinkronkan...'
+                              : 'Real-Time Aktif'}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-emerald-700 dark:text-emerald-400 truncate">
-                          Tersinkronisasi Lintas Perangkat: {firebaseUser.email}
+                          {firebaseUser.email}
+                          {lastSyncedAt
+                            ? ` · Pembaruan terakhir ${new Date(lastSyncedAt).toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}`
+                            : ''}
                         </p>
                       </div>
                     </div>
@@ -952,11 +984,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {onSyncLocalToCloud && (
                         <button
                           type="button"
+                          disabled={cloudSyncStatus === 'syncing'}
                           onClick={onSyncLocalToCloud}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-60 text-neutral-700 dark:text-neutral-200 transition-colors"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Unggah Data Lokal</span>
+                          <RefreshCw className={`w-3.5 h-3.5 ${cloudSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                          <span>{cloudSyncStatus === 'syncing' ? 'Mengunggah...' : 'Unggah Data Lokal'}</span>
                         </button>
                       )}
                       {onSignOutGoogle && (
@@ -1005,14 +1038,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-neutral-50 dark:bg-neutral-800/40 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+        <div className="px-6 py-4 bg-neutral-50 dark:bg-neutral-800/40 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs text-neutral-500 dark:text-neutral-400">
             Total {totalShortcutsCount} pintasan aktif ({firebaseUser ? 'Firebase Firestore Cloud' : 'Penyimpanan Lokal Browser'}).
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors clay-btn-primary"
+            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors whitespace-nowrap clay-btn-primary"
           >
             Selesai & Simpan
           </button>
