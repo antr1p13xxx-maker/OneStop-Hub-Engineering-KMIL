@@ -25,6 +25,7 @@ import {
 import { ShortcutItem, ShortcutGroup, CustomLogoConfig } from '../types';
 import { DynamicIcon, isImageIcon } from './DynamicIcon';
 import { getFaviconUrl, copyToClipboard } from '../utils/pathHelper';
+import { playJarvisOrbitHoverSound, playJarvisOrbitDeploySound } from '../utils/jarvisAudio';
 
 interface OrbitHubViewProps {
   shortcuts: ShortcutItem[];
@@ -38,6 +39,7 @@ interface OrbitHubViewProps {
   canEditShortcut: boolean;
   canDeleteShortcut: boolean;
   canDeleteGroup?: boolean;
+  audioEnabled?: boolean;
   onRequestDeleteGroup?: (groupId: string) => void;
   onLaunch: (shortcut: ShortcutItem) => void;
   onEdit: (shortcut: ShortcutItem) => void;
@@ -58,6 +60,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   canEditShortcut,
   canDeleteShortcut,
   canDeleteGroup = false,
+  audioEnabled = true,
   onRequestDeleteGroup,
   onLaunch,
   onEdit,
@@ -67,6 +70,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
 }) => {
   const [inspectedItem, setInspectedItem] = useState<ShortcutItem | null>(null);
   const [isOrbitExpanded, setIsOrbitExpanded] = useState(false);
+  const [isOrbitLoaded, setIsOrbitLoaded] = useState(false);
   const [stageSize, setStageSize] = useState(660);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [failedFavicons, setFailedFavicons] = useState<Record<string, boolean>>({});
@@ -77,6 +81,10 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   const orbitRotation = useMotionValue(0);
   const counterRotation = useTransform(orbitRotation, (deg) => -deg);
 
+  const ringRadius = 30;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringDashOffset = useTransform(orbitRotation, [0, 720], [ringCircumference, 0]);
+
   useEffect(() => {
     setLogoError(false);
   }, [customLogo?.src]);
@@ -84,10 +92,11 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
   // Reset to center-gathered state whenever the user opens a different group
   useEffect(() => {
     setIsOrbitExpanded(false);
+    setIsOrbitLoaded(false);
     setInspectedItem(null);
   }, [selectedGroupFilter]);
 
-  // After icons spread outward, rotate the orbit 2 full turns (720deg) and stop cleanly
+  // After icons spread outward, rotate the orbit 2 full turns (720deg) and fill circular progress
   useEffect(() => {
     let delayTimer: number | undefined;
     let controls: { stop: () => void } | undefined;
@@ -95,15 +104,22 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
     if (isOrbitExpanded) {
       orbitRotation.set(0);
       if (!shouldReduceMotion) {
+        setIsOrbitLoaded(false);
         delayTimer = window.setTimeout(() => {
           controls = animate(orbitRotation, 720, {
             duration: 2.1,
             ease: [0.22, 1, 0.36, 1],
+            onComplete: () => {
+              setIsOrbitLoaded(true);
+            },
           });
         }, 420);
+      } else {
+        setIsOrbitLoaded(true);
       }
     } else {
       orbitRotation.stop();
+      setIsOrbitLoaded(false);
       if (!shouldReduceMotion) {
         delayTimer = window.setTimeout(() => {
           orbitRotation.set(0);
@@ -189,6 +205,19 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
       setCopiedId(item.id);
       setTimeout(() => setCopiedId(null), 1800);
     }
+  };
+
+  const handleExpandOrbit = () => {
+    if (isOrbitExpanded) return;
+    setIsOrbitExpanded(true);
+    playJarvisOrbitDeploySound(audioEnabled);
+  };
+
+  const handleInspectShortcut = (item: ShortcutItem, slotIndex: number) => {
+    if (activeShortcut?.id !== item.id) {
+      playJarvisOrbitHoverSound(audioEnabled, slotIndex);
+    }
+    setInspectedItem(item);
   };
 
   // Radius percentage inside the square orbital stage (generous separation from center HUD)
@@ -534,11 +563,21 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setIsOrbitExpanded((prev) => !prev)}
+          onClick={() => {
+            if (!isOrbitExpanded) {
+              handleExpandOrbit();
+            } else {
+              setIsOrbitExpanded(false);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setIsOrbitExpanded((prev) => !prev);
+              if (!isOrbitExpanded) {
+                handleExpandOrbit();
+              } else {
+                setIsOrbitExpanded(false);
+              }
             }
           }}
           className="mx-auto max-w-sm rounded-2xl border border-amber-500/30 bg-neutral-900/75 px-4 py-4 text-center flex flex-col items-center justify-center cursor-pointer"
@@ -625,37 +664,73 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                         : 'bg-neutral-900/80 border-amber-500/30 hover:border-amber-400'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center mb-1.5 bg-neutral-950/60">
-                      {hasCustomPhoto ? (
-                        <img
-                          src={item.iconValue}
-                          alt={item.title}
-                          onError={() =>
-                            setFailedCustomPhotos((prev) => ({
-                              ...prev,
-                              [customPhotoKey]: true,
-                            }))
-                          }
-                          className="w-full h-full object-cover"
+                    <div className="relative w-11 h-11 flex items-center justify-center mb-1.5">
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 48 48"
+                        className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none"
+                      >
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="21"
+                          fill="none"
+                          stroke="rgba(245, 158, 11, 0.18)"
+                          strokeWidth="1.5"
+                          strokeDasharray="2 3"
                         />
-                      ) : isDirectory ? (
-                        <HardDrive className="w-5 h-5 text-amber-400 stroke-[1.75]" />
-                      ) : favicon ? (
-                        <img
-                          src={favicon}
-                          alt={item.title}
-                          referrerPolicy="no-referrer"
-                          onError={() =>
-                            setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
-                          }
-                          className="w-6 h-6 object-contain rounded"
+                        <motion.circle
+                          cx="24"
+                          cy="24"
+                          r="21"
+                          fill="none"
+                          stroke={isSelected ? '#fde68a' : '#f59e0b'}
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeDasharray={2 * Math.PI * 21}
+                          initial={{
+                            strokeDashoffset: shouldReduceMotion ? 0 : 2 * Math.PI * 21,
+                          }}
+                          animate={{ strokeDashoffset: 0 }}
+                          transition={{
+                            duration: shouldReduceMotion ? 0 : 1.6,
+                            delay: shouldReduceMotion ? 0 : 0.12 + index * 0.03,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
                         />
-                      ) : (
-                        <DynamicIcon
-                          name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
-                          className="w-5 h-5 text-amber-400 stroke-[1.75]"
-                        />
-                      )}
+                      </svg>
+                      <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-neutral-950/75">
+                        {hasCustomPhoto ? (
+                          <img
+                            src={item.iconValue}
+                            alt={item.title}
+                            onError={() =>
+                              setFailedCustomPhotos((prev) => ({
+                                ...prev,
+                                [customPhotoKey]: true,
+                              }))
+                            }
+                            className="w-full h-full object-cover"
+                          />
+                        ) : isDirectory ? (
+                          <HardDrive className="w-4 h-4 text-amber-400 stroke-[1.75]" />
+                        ) : favicon ? (
+                          <img
+                            src={favicon}
+                            alt={item.title}
+                            referrerPolicy="no-referrer"
+                            onError={() =>
+                              setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
+                            }
+                            className="w-5 h-5 object-contain rounded"
+                          />
+                        ) : (
+                          <DynamicIcon
+                            name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                            className="w-4 h-4 text-amber-400 stroke-[1.75]"
+                          />
+                        )}
+                      </div>
                     </div>
                     <span className="w-full text-[11px] font-medium text-neutral-200 truncate text-center leading-tight">
                       {item.title}
@@ -729,15 +804,11 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
 
           {/* Center Trigger Hitbox & HUD (hovering center spreads icons outward) */}
           <div
-            onMouseEnter={() => {
-              if (!isOrbitExpanded) setIsOrbitExpanded(true);
-            }}
-            onFocus={() => {
-              if (!isOrbitExpanded) setIsOrbitExpanded(true);
-            }}
+            onMouseEnter={handleExpandOrbit}
+            onFocus={handleExpandOrbit}
             onClick={(e) => {
               e.stopPropagation();
-              if (!isOrbitExpanded) setIsOrbitExpanded(true);
+              handleExpandOrbit();
             }}
             className={`relative z-30 flex flex-col items-center justify-center text-center transition-all duration-300 ${
               isOrbitExpanded
@@ -858,79 +929,149 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                     style={shouldReduceMotion ? undefined : { rotate: counterRotation }}
                     className="flex flex-col items-center group"
                   >
-                    <motion.button
-                      type="button"
-                      tabIndex={isOrbitExpanded ? 0 : -1}
-                      animate={
-                        shouldReduceMotion
-                          ? undefined
-                          : { rotate: isOrbitExpanded ? 0 : gatheredRotate }
-                      }
-                      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                      onMouseEnter={() => {
-                        if (isOrbitExpanded) setInspectedItem(item);
-                      }}
-                      onFocus={() => {
-                        if (isOrbitExpanded) setInspectedItem(item);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isOrbitExpanded) {
-                          setIsOrbitExpanded(true);
-                          return;
-                        }
-                        setInspectedItem(item);
-                        onLaunch(item);
-                      }}
-                      title={`${item.title} — ${item.url}`}
-                      className={`relative w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                        isSelected
-                          ? 'bg-amber-500/20 border-2 border-amber-400 scale-110 shadow-[0_0_28px_rgba(245,158,11,0.55)]'
-                          : 'bg-neutral-900/95 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/15 hover:scale-110 hover:shadow-[0_0_24px_rgba(245,158,11,0.4)]'
-                      }`}
-                    >
-                      <div className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center">
-                        {hasCustomPhoto ? (
-                          <img
-                            src={item.iconValue}
-                            alt={item.title}
-                            onError={() =>
-                              setFailedCustomPhotos((prev) => ({
-                                ...prev,
-                                [customPhotoKey]: true,
-                              }))
-                            }
-                            className="w-full h-full object-cover"
-                          />
-                        ) : isDirectory ? (
-                          <HardDrive className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75]" />
-                        ) : favicon ? (
-                          <img
-                            src={favicon}
-                            alt={item.title}
-                            referrerPolicy="no-referrer"
-                            onError={() =>
-                              setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
-                            }
-                            className="w-6 h-6 md:w-7 md:h-7 object-contain rounded"
-                          />
-                        ) : (
-                          <DynamicIcon
-                            name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
-                            className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
-                          />
-                        )}
-                      </div>
+                    <div className="relative flex items-center justify-center">
+                      {/* J.A.R.V.I.S. Circular Data-Loading Ring synchronized with the 2-turn spin */}
+                      <motion.svg
+                        aria-hidden="true"
+                        viewBox="0 0 68 68"
+                        animate={{
+                          opacity: !isOrbitExpanded
+                            ? 0
+                            : isSelected
+                            ? 1
+                            : isOrbitLoaded
+                            ? 0.55
+                            : 0.95,
+                          scale: !isOrbitExpanded ? 0.85 : isSelected ? 1.12 : 1,
+                        }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none"
+                      >
+                        {/* Segmented HUD calibration track */}
+                        <circle
+                          cx="34"
+                          cy="34"
+                          r={ringRadius}
+                          fill="none"
+                          stroke="rgba(245, 158, 11, 0.2)"
+                          strokeWidth="1.25"
+                          strokeDasharray="2.5 3.5"
+                        />
+                        {/* Cardinal HUD micro-ticks */}
+                        <line x1="34" y1="1.5" x2="34" y2="3.5" stroke="rgba(251, 191, 36, 0.55)" strokeWidth="1.25" strokeLinecap="round" />
+                        <line x1="34" y1="64.5" x2="34" y2="66.5" stroke="rgba(251, 191, 36, 0.55)" strokeWidth="1.25" strokeLinecap="round" />
+                        <line x1="1.5" y1="34" x2="3.5" y2="34" stroke="rgba(251, 191, 36, 0.55)" strokeWidth="1.25" strokeLinecap="round" />
+                        <line x1="64.5" y1="34" x2="66.5" y2="34" stroke="rgba(251, 191, 36, 0.55)" strokeWidth="1.25" strokeLinecap="round" />
 
-                      {item.isPinned && isOrbitExpanded && (
-                        <span
-                          title="Tersemat"
-                          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-neutral-950 flex items-center justify-center shadow"
-                        >
-                          <Pin className="w-2 h-2 fill-current" />
-                        </span>
-                      )}
-                    </motion.button>
+                        {/* Soft ambient progress halo */}
+                        <motion.circle
+                          cx="34"
+                          cy="34"
+                          r={ringRadius}
+                          fill="none"
+                          stroke="rgba(251, 191, 36, 0.24)"
+                          strokeWidth="4.25"
+                          strokeLinecap="round"
+                          strokeDasharray={ringCircumference}
+                          style={
+                            shouldReduceMotion
+                              ? { strokeDashoffset: isOrbitExpanded ? 0 : ringCircumference }
+                              : { strokeDashoffset: ringDashOffset }
+                          }
+                        />
+
+                        {/* Primary J.A.R.V.I.S. circular data-loading progress arc */}
+                        <motion.circle
+                          cx="34"
+                          cy="34"
+                          r={ringRadius}
+                          fill="none"
+                          stroke={isSelected || isOrbitLoaded ? '#fcd34d' : '#f59e0b'}
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeDasharray={ringCircumference}
+                          style={
+                            shouldReduceMotion
+                              ? { strokeDashoffset: isOrbitExpanded ? 0 : ringCircumference }
+                              : { strokeDashoffset: ringDashOffset }
+                          }
+                        />
+                      </motion.svg>
+
+                      <motion.button
+                        type="button"
+                        tabIndex={isOrbitExpanded ? 0 : -1}
+                        animate={
+                          shouldReduceMotion
+                            ? undefined
+                            : { rotate: isOrbitExpanded ? 0 : gatheredRotate }
+                        }
+                        transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                        onMouseEnter={() => {
+                          if (isOrbitExpanded) handleInspectShortcut(item, index);
+                        }}
+                        onFocus={() => {
+                          if (isOrbitExpanded) handleInspectShortcut(item, index);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isOrbitExpanded) {
+                            handleExpandOrbit();
+                            return;
+                          }
+                          setInspectedItem(item);
+                          onLaunch(item);
+                        }}
+                        title={`${item.title} — ${item.url}`}
+                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-2 border-amber-400 scale-110 shadow-[0_0_28px_rgba(245,158,11,0.55)]'
+                            : 'bg-neutral-900/95 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/15 hover:scale-110 hover:shadow-[0_0_24px_rgba(245,158,11,0.4)]'
+                        }`}
+                      >
+                        <div className="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center">
+                          {hasCustomPhoto ? (
+                            <img
+                              src={item.iconValue}
+                              alt={item.title}
+                              onError={() =>
+                                setFailedCustomPhotos((prev) => ({
+                                  ...prev,
+                                  [customPhotoKey]: true,
+                                }))
+                              }
+                              className="w-full h-full object-cover"
+                            />
+                          ) : isDirectory ? (
+                            <HardDrive className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75]" />
+                          ) : favicon ? (
+                            <img
+                              src={favicon}
+                              alt={item.title}
+                              referrerPolicy="no-referrer"
+                              onError={() =>
+                                setFailedFavicons((prev) => ({ ...prev, [item.id]: true }))
+                              }
+                              className="w-6 h-6 md:w-7 md:h-7 object-contain rounded"
+                            />
+                          ) : (
+                            <DynamicIcon
+                              name={isImageIcon(item.iconValue) ? 'Globe' : item.iconValue || 'Globe'}
+                              className="w-6 h-6 md:w-7 md:h-7 text-amber-400 stroke-[1.75] group-hover:text-amber-300"
+                            />
+                          )}
+                        </div>
+
+                        {item.isPinned && isOrbitExpanded && (
+                          <span
+                            title="Tersemat"
+                            className="absolute -top-1 -right-1 z-10 w-3.5 h-3.5 rounded-full bg-amber-500 text-neutral-950 flex items-center justify-center shadow"
+                          >
+                            <Pin className="w-2 h-2 fill-current" />
+                          </span>
+                        )}
+                      </motion.button>
+                    </div>
 
                     <motion.span
                       animate={{
@@ -941,7 +1082,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                         duration: 0.16,
                         delay: isOrbitExpanded && !shouldReduceMotion ? 0.1 + index * 0.018 : 0,
                       }}
-                      className={`mt-1.5 px-1.5 py-0.5 rounded-md bg-[#08080a]/90 text-[11px] font-medium max-w-[84px] md:max-w-[100px] truncate text-center leading-tight transition-colors ${
+                      className={`mt-2 px-1.5 py-0.5 rounded-md bg-[#08080a]/90 text-[11px] font-medium max-w-[84px] md:max-w-[100px] truncate text-center leading-tight transition-colors ${
                         isSelected
                           ? 'text-amber-300 font-semibold'
                           : 'text-neutral-300 group-hover:text-white'
@@ -964,7 +1105,7 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             Pintasan Lainnya ({overflowItems.length})
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {overflowItems.map((item) => {
+            {overflowItems.map((item, overflowIndex) => {
               const customPhotoKey = `${item.id}:${item.iconValue || ''}`;
               const hasCustomPhoto =
                 item.iconType === 'custom' &&
@@ -975,7 +1116,8 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                 <button
                   key={item.id}
                   type="button"
-                  onMouseEnter={() => setInspectedItem(item)}
+                  onMouseEnter={() => handleInspectShortcut(item, maxOrbitCount + overflowIndex)}
+                  onFocus={() => handleInspectShortcut(item, maxOrbitCount + overflowIndex)}
                   onClick={() => onLaunch(item)}
                   className="flex items-center gap-2 p-2 rounded-xl border border-amber-500/25 bg-neutral-900/75 hover:bg-amber-500/15 hover:border-amber-400 text-left transition-colors cursor-pointer min-w-0"
                 >

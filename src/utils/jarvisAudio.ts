@@ -145,6 +145,142 @@ export function playJarvisLockSound(enabled: boolean = true) {
   }
 }
 
+let lastOrbitHoverAt = 0;
+let lastOrbitDeployAt = 0;
+
+/**
+ * Subtle futuristic HUD target-lock shimmer when cursor detects an icon in Orbit Hub
+ */
+export function playJarvisOrbitHoverSound(enabled: boolean = true, slotIndex: number = 0) {
+  if (!enabled) return;
+
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (nowMs - lastOrbitHoverAt < 60) return;
+
+  const ctx = getAudioContext();
+  if (!ctx || ctx.state !== 'running') return;
+  lastOrbitHoverAt = nowMs;
+
+  try {
+    const now = ctx.currentTime;
+    const baseFreq = 1040 + (Math.abs(slotIndex) % 6) * 70;
+
+    // 1. Soft bandpass-shaped holographic ping
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1650, now);
+    filter.Q.setValueAtTime(1.8, now);
+    filter.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.42, now + 0.055);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.028, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(filter);
+    osc.start(now);
+    osc.stop(now + 0.095);
+
+    // 2. Crisp micro telemetry harmonic
+    const tickOsc = ctx.createOscillator();
+    const tickGain = ctx.createGain();
+    tickOsc.type = 'triangle';
+    tickOsc.frequency.setValueAtTime(2180 + (Math.abs(slotIndex) % 4) * 95, now + 0.012);
+
+    tickGain.gain.setValueAtTime(0.0001, now + 0.012);
+    tickGain.gain.linearRampToValueAtTime(0.011, now + 0.018);
+    tickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.068);
+
+    tickOsc.connect(tickGain);
+    tickGain.connect(filter);
+    tickOsc.start(now + 0.012);
+    tickOsc.stop(now + 0.072);
+  } catch {
+    // Silently ignore audio errors
+  }
+}
+
+/**
+ * Subtle radial holographic deployment pulse when Orbit Hub icons spread outward
+ */
+export function playJarvisOrbitDeploySound(enabled: boolean = true) {
+  if (!enabled) return;
+
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (nowMs - lastOrbitDeployAt < 280) return;
+
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const triggerDeploySynth = (activeCtx: AudioContext) => {
+    const fireMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    lastOrbitDeployAt = fireMs;
+    try {
+      const now = activeCtx.currentTime;
+
+      const filter = activeCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2400, now);
+      filter.connect(activeCtx.destination);
+
+      // Soft rising sweep
+      const sweepOsc = activeCtx.createOscillator();
+      const sweepGain = activeCtx.createGain();
+      sweepOsc.type = 'sine';
+      sweepOsc.frequency.setValueAtTime(340, now);
+      sweepOsc.frequency.exponentialRampToValueAtTime(780, now + 0.22);
+
+      sweepGain.gain.setValueAtTime(0.0001, now);
+      sweepGain.gain.linearRampToValueAtTime(0.032, now + 0.035);
+      sweepGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+
+      sweepOsc.connect(sweepGain);
+      sweepGain.connect(filter);
+      sweepOsc.start(now);
+      sweepOsc.stop(now + 0.26);
+
+      // Subtle crystalline accent
+      const shimmerOsc = activeCtx.createOscillator();
+      const shimmerGain = activeCtx.createGain();
+      shimmerOsc.type = 'sine';
+      shimmerOsc.frequency.setValueAtTime(1320, now + 0.04);
+      shimmerOsc.frequency.exponentialRampToValueAtTime(1760, now + 0.2);
+
+      shimmerGain.gain.setValueAtTime(0.0001, now + 0.04);
+      shimmerGain.gain.linearRampToValueAtTime(0.015, now + 0.075);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+      shimmerOsc.connect(shimmerGain);
+      shimmerGain.connect(filter);
+      shimmerOsc.start(now + 0.04);
+      shimmerOsc.stop(now + 0.23);
+    } catch {
+      // Silently ignore audio errors
+    }
+  };
+
+  if (ctx.state === 'running') {
+    triggerDeploySynth(ctx);
+  } else if (ctx.state === 'suspended') {
+    const requestedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    ctx
+      .resume()
+      .then(() => {
+        const resolvedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (ctx.state === 'running' && resolvedAt - requestedAt < 100) {
+          triggerDeploySynth(ctx);
+        }
+      })
+      .catch(() => {});
+  }
+}
+
 /**
  * Optional Jarvis vocal greeting using browser SpeechSynthesis
  */

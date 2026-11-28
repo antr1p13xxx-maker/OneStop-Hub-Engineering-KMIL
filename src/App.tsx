@@ -1834,6 +1834,7 @@ export default function App() {
             canEditShortcut={permissions.canEditShortcut}
             canDeleteShortcut={permissions.canDeleteShortcut}
             canDeleteGroup={permissions.canDeleteGroup}
+            audioEnabled={isJarvisAudio}
             onRequestDeleteGroup={handleOpenDeleteGroupModal}
             onLaunch={handleLaunch}
             onEdit={handleEditShortcut}
