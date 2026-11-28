@@ -426,10 +426,29 @@ export function saveStoredCardDensity(density: 'small' | 'medium' | 'large'): vo
   }
 }
 
-// J.A.R.V.I.S. Startup Intro Storage
+// J.A.R.V.I.S. Startup Intro & HUD Overlay Storage
 const STORAGE_JARVIS_INTRO_KEY = 'onestop_hub_jarvis_intro_v1';
 const STORAGE_JARVIS_AUDIO_KEY = 'onestop_hub_jarvis_audio_v1';
+const STORAGE_HUD_OVERLAY_KEY = 'onestop_hub_hud_overlay_v1';
 const SESSION_JARVIS_PLAYED_KEY = 'onestop_hub_jarvis_session_played';
+
+export function isHudOverlayEnabled(): boolean {
+  try {
+    const saved = localStorage.getItem(STORAGE_HUD_OVERLAY_KEY);
+    if (saved === null) return true; // Enabled by default
+    return saved === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function setHudOverlayEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(STORAGE_HUD_OVERLAY_KEY, String(enabled));
+  } catch {
+    // Ignore
+  }
+}
 
 export function isJarvisIntroEnabled(): boolean {
   try {

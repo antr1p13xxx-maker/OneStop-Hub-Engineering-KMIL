@@ -65,6 +65,8 @@ interface SettingsModalProps {
   onToggleJarvisEnabled: (enabled: boolean) => void;
   isJarvisAudioEnabled: boolean;
   onToggleJarvisAudio: (enabled: boolean) => void;
+  isHudOverlayEnabled?: boolean;
+  onToggleHudOverlay?: (enabled: boolean) => void;
   onPlayJarvisIntro: () => void;
   customLogo: CustomLogoConfig | null;
   onSaveCustomLogo: (logo: CustomLogoConfig | null) => void;
@@ -102,6 +104,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleJarvisEnabled,
   isJarvisAudioEnabled,
   onToggleJarvisAudio,
+  isHudOverlayEnabled = true,
+  onToggleHudOverlay,
   onPlayJarvisIntro,
   customLogo,
   onSaveCustomLogo,
@@ -705,16 +709,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Toggles Strip */}
               <div className="pt-2 border-t border-neutral-200/50 dark:border-neutral-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-                {/* Enable / Disable Intro */}
-                <label className="flex items-center gap-2 cursor-pointer select-none text-neutral-700 dark:text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={isJarvisEnabled}
-                    onChange={(e) => onToggleJarvisEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 border-neutral-300 dark:border-neutral-700"
-                  />
-                  <span>Tampilkan Intro saat Buka Aplikasi</span>
-                </label>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {/* Enable / Disable Intro */}
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-neutral-700 dark:text-neutral-300">
+                    <input
+                      type="checkbox"
+                      checked={isJarvisEnabled}
+                      onChange={(e) => onToggleJarvisEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 border-neutral-300 dark:border-neutral-700"
+                    />
+                    <span>Tampilkan Intro saat Buka Aplikasi</span>
+                  </label>
+
+                  {/* Enable / Disable Perimeter System HUD */}
+                  {onToggleHudOverlay && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-neutral-700 dark:text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={isHudOverlayEnabled}
+                        onChange={(e) => onToggleHudOverlay(e.target.checked)}
+                        className="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500 border-neutral-300 dark:border-neutral-700"
+                      />
+                      <span>HUD Status Sistem &amp; CPU/Memori</span>
+                    </label>
+                  )}
+                </div>
 
                 {/* Audio Effects Toggle */}
                 <button

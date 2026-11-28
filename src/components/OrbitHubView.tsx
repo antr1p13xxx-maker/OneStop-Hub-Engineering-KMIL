@@ -220,6 +220,114 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
     setInspectedItem(item);
   };
 
+  const activeOrbitIndex = activeShortcut
+    ? orbitItems.findIndex((item) => item.id === activeShortcut.id)
+    : -1;
+
+  // Keyboard navigation in Orbit Hub: ArrowLeft/Right/Up/Down, 1-9 quick target, Enter to launch, Escape to clear/collapse
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const targetEl = e.target as HTMLElement | null;
+      const tag = targetEl?.tagName;
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        targetEl?.isContentEditable
+      ) {
+        return;
+      }
+      // Yield to any open modal dialog (CommandPalette, AddEdit, Settings, etc.)
+      if (document.querySelector('[role="dialog"]')) return;
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        if (orbitItems.length === 0) return;
+        e.preventDefault();
+        if (!isOrbitExpanded) {
+          setIsOrbitExpanded(true);
+          playJarvisOrbitDeploySound(audioEnabled);
+          setInspectedItem(orbitItems[0]);
+          playJarvisOrbitHoverSound(audioEnabled, 0);
+          return;
+        }
+        const nextIdx = activeOrbitIndex === -1 ? 0 : (activeOrbitIndex + 1) % orbitItems.length;
+        const nextItem = orbitItems[nextIdx];
+        if (nextItem) {
+          if (activeShortcut?.id !== nextItem.id) {
+            playJarvisOrbitHoverSound(audioEnabled, nextIdx);
+          }
+          setInspectedItem(nextItem);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        if (orbitItems.length === 0) return;
+        e.preventDefault();
+        if (!isOrbitExpanded) {
+          const lastIdx = orbitItems.length - 1;
+          setIsOrbitExpanded(true);
+          playJarvisOrbitDeploySound(audioEnabled);
+          setInspectedItem(orbitItems[lastIdx]);
+          playJarvisOrbitHoverSound(audioEnabled, lastIdx);
+          return;
+        }
+        const prevIdx =
+          activeOrbitIndex === -1
+            ? orbitItems.length - 1
+            : (activeOrbitIndex - 1 + orbitItems.length) % orbitItems.length;
+        const prevItem = orbitItems[prevIdx];
+        if (prevItem) {
+          if (activeShortcut?.id !== prevItem.id) {
+            playJarvisOrbitHoverSound(audioEnabled, prevIdx);
+          }
+          setInspectedItem(prevItem);
+        }
+        return;
+      }
+
+      if (e.key >= '1' && e.key <= '9') {
+        const slotIdx = Number(e.key) - 1;
+        const targetItem = orbitItems[slotIdx] || shortcuts[slotIdx];
+        if (!targetItem) return;
+        e.preventDefault();
+        if (!isOrbitExpanded) {
+          setIsOrbitExpanded(true);
+          playJarvisOrbitDeploySound(audioEnabled);
+        }
+        if (activeShortcut?.id !== targetItem.id) {
+          playJarvisOrbitHoverSound(audioEnabled, slotIdx);
+        }
+        setInspectedItem(targetItem);
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        if (tag === 'BUTTON' || tag === 'A') return;
+        if (isOrbitExpanded && activeShortcut) {
+          e.preventDefault();
+          onLaunch(activeShortcut);
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (activeShortcut) {
+          e.preventDefault();
+          setInspectedItem(null);
+        } else if (isOrbitExpanded) {
+          e.preventDefault();
+          setIsOrbitExpanded(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [orbitItems, shortcuts, isOrbitExpanded, activeOrbitIndex, activeShortcut, audioEnabled, onLaunch]);
+
   // Radius percentage inside the square orbital stage (generous separation from center HUD)
   const radiusPct = orbitItems.length <= 4 ? 35 : orbitItems.length <= 8 ? 38.5 : 41;
   const expandedRadiusPx = stageSize * (radiusPct / 100);
@@ -407,10 +515,10 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
           </p>
         )}
 
-        <p className="text-[10px] font-mono text-neutral-500 pt-1">
+        <p className="text-[10px] font-mono text-neutral-400 pt-1">
           {orbitItems.length === 0
             ? 'Belum ada pintasan'
-            : 'Arahkan atau klik ikon pintasan'}
+            : 'Arahkan kursor · ← → / 1–9 + Enter'}
         </p>
       </div>
     );
@@ -854,11 +962,103 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
             )}
           </div>
 
-          {/* Shortcut Icons: Gathered at Center -> Spread Outward -> Spin 2 Full Turns -> Stop */}
+          {/* Shortcut Icons + Target Radar Beam: Gathered at Center -> Spread Outward -> Spin 2 Full Turns -> Stop */}
           <motion.div
             style={shouldReduceMotion ? undefined : { rotate: orbitRotation }}
             className="absolute inset-0 z-20 pointer-events-none"
           >
+            {/* Glowing J.A.R.V.I.S. Radar Beam from Center HUD to the currently highlighted icon */}
+            {isOrbitExpanded && activeOrbitIndex !== -1 && orbitItems.length > 0 && (() => {
+              const targetAngle =
+                (activeOrbitIndex / orbitItems.length) * 2 * Math.PI - Math.PI / 2;
+              const cx = stageSize / 2;
+              const cy = stageSize / 2;
+              const innerStartR = Math.min(108, expandedRadiusPx * 0.44);
+              const targetEndR = Math.max(innerStartR + 14, expandedRadiusPx - 35);
+              const x1 = cx + Math.cos(targetAngle) * innerStartR;
+              const y1 = cy + Math.sin(targetAngle) * innerStartR;
+              const x2 = cx + Math.cos(targetAngle) * targetEndR;
+              const y2 = cy + Math.sin(targetAngle) * targetEndR;
+
+              return (
+                <svg
+                  aria-hidden="true"
+                  viewBox={`0 0 ${stageSize} ${stageSize}`}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                >
+                  <defs>
+                    <linearGradient
+                      id="orbit-radar-beam-grad"
+                      gradientUnits="userSpaceOnUse"
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                    >
+                      <stop offset="0%" stopColor="rgba(245, 158, 11, 0.2)" />
+                      <stop offset="55%" stopColor="rgba(251, 191, 36, 0.78)" />
+                      <stop offset="100%" stopColor="#fde68a" />
+                    </linearGradient>
+                  </defs>
+
+                  <motion.g
+                    key={activeShortcut?.id}
+                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0.25 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.16, ease: 'easeOut' }}
+                  >
+                    {/* Soft glowing radar beam halo */}
+                    <motion.line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="rgba(245, 158, 11, 0.24)"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      initial={shouldReduceMotion ? false : { pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    />
+                    {/* Crisp primary target lock beam */}
+                    <motion.line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="url(#orbit-radar-beam-grad)"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      initial={shouldReduceMotion ? false : { pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    />
+                    {/* Subtle segmented scanner trace */}
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="rgba(254, 240, 138, 0.5)"
+                      strokeWidth="1"
+                      strokeDasharray="3 6"
+                      strokeLinecap="round"
+                    />
+                    {/* Origin & target reticle lock nodes */}
+                    <circle cx={x1} cy={y1} r="2.2" fill="#f59e0b" opacity="0.75" />
+                    <motion.circle
+                      cx={x2}
+                      cy={y2}
+                      r="3.2"
+                      fill="#fde68a"
+                      initial={shouldReduceMotion ? false : { scale: 0.4, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.18, delay: 0.08 }}
+                    />
+                  </motion.g>
+                </svg>
+              );
+            })()}
             {orbitItems.map((item, index) => {
               const angle = (index / orbitItems.length) * 2 * Math.PI - Math.PI / 2;
               const expandedX = Math.cos(angle) * expandedRadiusPx;
@@ -1061,6 +1261,19 @@ export const OrbitHubView: React.FC<OrbitHubViewProps> = ({
                             />
                           )}
                         </div>
+
+                        {index < 9 && isOrbitExpanded && (
+                          <span
+                            title={`Tekan ${index + 1} untuk menyorot, Enter untuk buka`}
+                            className={`absolute -top-1 -left-1 z-10 w-4 h-4 rounded-md text-[9px] font-mono font-bold tabular-nums flex items-center justify-center border shadow transition-colors ${
+                              isSelected
+                                ? 'bg-amber-400 border-amber-200 text-neutral-950'
+                                : 'bg-neutral-950/90 border-amber-500/45 text-amber-300/90'
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                        )}
 
                         {item.isPinned && isOrbitExpanded && (
                           <span

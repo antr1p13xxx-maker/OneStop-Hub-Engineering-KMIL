@@ -45,6 +45,8 @@ import {
   setJarvisIntroEnabled,
   isJarvisAudioEnabled,
   setJarvisAudioEnabled,
+  isHudOverlayEnabled,
+  setHudOverlayEnabled,
   hasSeenJarvisIntroSession,
   markJarvisIntroSeenSession,
   getStoredCustomLogo,
@@ -111,6 +113,7 @@ import { JarvisIntro } from './components/JarvisIntro';
 import { OrbitHubView } from './components/OrbitHubView';
 import { DynamicIcon, isImageIcon } from './components/DynamicIcon';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { SystemHudOverlay } from './components/SystemHudOverlay';
 
 export default function App() {
   // State
@@ -129,6 +132,7 @@ export default function App() {
   const [showJarvisIntro, setShowJarvisIntro] = useState<boolean>(false);
   const [isJarvisEnabled, setIsJarvisEnabled] = useState<boolean>(true);
   const [isJarvisAudio, setIsJarvisAudio] = useState<boolean>(true);
+  const [isHudOverlayVisible, setIsHudOverlayVisible] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<FilterType>('all');
@@ -250,6 +254,7 @@ export default function App() {
     const audioEnabled = isJarvisAudioEnabled();
     setIsJarvisEnabled(introEnabled);
     setIsJarvisAudio(audioEnabled);
+    setIsHudOverlayVisible(isHudOverlayEnabled());
 
     if (introEnabled && !hasSeenJarvisIntroSession()) {
       setShowJarvisIntro(true);
@@ -757,6 +762,11 @@ export default function App() {
 
   const handlePlayJarvisIntro = () => {
     setShowJarvisIntro(true);
+  };
+
+  const handleToggleHudOverlay = (enabled: boolean) => {
+    setIsHudOverlayVisible(enabled);
+    setHudOverlayEnabled(enabled);
   };
 
   // Custom Logo Handler
@@ -2002,7 +2012,11 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 py-4 clay-footer transition-colors">
+      <footer
+        className={`mt-auto border-t border-neutral-200 dark:border-neutral-800 bg-white/60 dark:bg-neutral-900/60 py-4 clay-footer transition-colors ${
+          isHudOverlayVisible ? 'pb-12 sm:pb-11' : ''
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-neutral-400">
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1">
             <span className="font-bold bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 dark:from-indigo-400 dark:via-violet-400 dark:to-pink-400 bg-clip-text text-transparent">
@@ -2157,6 +2171,8 @@ export default function App() {
         onToggleJarvisEnabled={handleToggleJarvisEnabled}
         isJarvisAudioEnabled={isJarvisAudio}
         onToggleJarvisAudio={handleToggleJarvisAudio}
+        isHudOverlayEnabled={isHudOverlayVisible}
+        onToggleHudOverlay={handleToggleHudOverlay}
         onPlayJarvisIntro={handlePlayJarvisIntro}
         customLogo={customLogo}
         onSaveCustomLogo={handleSaveCustomLogo}
@@ -2186,6 +2202,15 @@ export default function App() {
           customLogo={customLogo}
         />
       )}
+
+      {/* Perimeter J.A.R.V.I.S. HUD Overlay (System Status, CPU & Memory) */}
+      <SystemHudOverlay
+        isVisible={isHudOverlayVisible}
+        onToggleVisible={handleToggleHudOverlay}
+        isOnline={isOnline}
+        cloudSyncStatus={cloudSyncStatus}
+        viewMode={viewMode}
+      />
     </div>
   );
 }
